@@ -1,0 +1,12 @@
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Background color (optional) -->
+    <item android:drawable="@android:color/white" />
+
+    <!-- Centered splash image; put your PNG at drawable-nodpi/splash_image.png -->
+    <item>
+        <bitmap
+            android:gravity="center"
+            android:src="@drawable/splash_image"
+            android:tileMode="disabled" />
+    </item>
+</layer-list>

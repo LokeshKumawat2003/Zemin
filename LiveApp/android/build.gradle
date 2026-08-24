@@ -1,0 +1,37 @@
+buildscript {
+    ext {
+        buildToolsVersion = "36.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 36
+        targetSdkVersion = 36
+        ndkVersion = "27.1.12297006"
+        kotlinVersion = "2.1.20"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin")
+    }
+}
+
+apply plugin: "com.facebook.react.rootproject"
+
+// Windows: bundled SDK Ninja (1.10.x) fails on paths > 260 chars even with long paths enabled.
+// Use Ninja 1.12+ from C:/ninja and raise CMake's object path limit.
+def windowsNinjaArgs = [
+    "-DCMAKE_MAKE_PROGRAM=C:/ninja/ninja.exe",
+    "-DCMAKE_OBJECT_PATH_MAX=1024",
+]
+
+subprojects { subproject ->
+    subproject.plugins.withId("com.android.application") {
+        subproject.android.defaultConfig.externalNativeBuild.cmake.arguments.addAll(windowsNinjaArgs)
+    }
+    subproject.plugins.withId("com.android.library") {
+        subproject.android.defaultConfig.externalNativeBuild.cmake.arguments.addAll(windowsNinjaArgs)
+    }
+}
