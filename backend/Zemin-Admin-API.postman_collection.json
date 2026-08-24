@@ -1,0 +1,1346 @@
+{
+  "info": {
+    "name": "Zemin Admin API",
+    "description": "Postman collection for the Zemin admin endpoints and demo admin login flow.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3001/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "type": "string"
+    },
+    {
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "reportId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "postId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "commentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "liveId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paymentMethodId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paymentId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "payoutId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "conversationId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "creatorId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "notificationId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Admin Login",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"demo-zemin@gmail.com\",\n  \"password\": \"demo123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/admin/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "admin",
+                "login"
+              ]
+            },
+            "description": "Login as demo admin. Accepts username or email."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "if (json && json.data && json.data.tokens && json.data.tokens.accessToken) {",
+                  "  pm.collectionVariables.set('adminToken', json.data.tokens.accessToken);",
+                  "  console.log('Admin token saved to collection variable');",
+                  "}",
+                  "else {",
+                  "  console.log('No access token returned');",
+                  "}",
+                  "pm.test('Login succeeded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Admin Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"admin2\",\n  \"email\": \"admin2@example.com\",\n  \"password\": \"StrongPass123!\",\n  \"displayName\": \"Admin Two\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/admin/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "admin",
+                "register"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin2@example.com\",\n  \"otp\": \"123456\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/admin/verify-otp",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "admin",
+                "verify-otp"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Session",
+      "item": [
+        {
+          "name": "Admin Is Logged In",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/isLoggedIn",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "isLoggedIn"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Admin Me",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "me"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin User Management",
+      "item": [
+        {
+          "name": "Get All Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users?page=1&limit=10&search=creator&role=creator&isBanned=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users"
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "creator", "description": "Matches username, displayName, or email" },
+                { "key": "role", "value": "creator", "description": "fan, creator, moderator, or admin" },
+                { "key": "isBanned", "value": "false", "description": "true or false" }
+              ]
+            },
+            "description": "List users with pagination and optional search, role, and ban-status filters."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const firstUser = json && json.data && json.data[0];",
+                  "if (firstUser && firstUser.id) pm.collectionVariables.set('userId', firstUser.id);",
+                  "pm.test('Users loaded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get User Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{userId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Ban User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Violation of community guidelines\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}/ban",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{userId}}",
+                "ban"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get User Payment Methods",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}/payment-methods",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{userId}}",
+                "payment-methods"
+              ]
+            },
+            "description": "View the user's saved bank and UPI details. Handle returned bank details as sensitive data."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const json = pm.response.json();",
+                  "const firstMethod = json && json.data && json.data.paymentMethods && json.data.paymentMethods[0];",
+                  "if (firstMethod && (firstMethod._id || firstMethod.id)) pm.collectionVariables.set('paymentMethodId', firstMethod._id || firstMethod.id);"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete User Payment Method",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}/payment-methods/{{paymentMethodId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{userId}}",
+                "payment-methods",
+                "{{paymentMethodId}}"
+              ]
+            },
+            "description": "Admin action: remove one saved bank or UPI method from the user."
+          }
+        },
+        {
+          "name": "Unban User",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}/unban",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{userId}}",
+                "unban"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Update User Role",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"role\": \"creator\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/users/{{userId}}/role",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "users",
+                "{{userId}}",
+                "role"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Creators",
+      "item": [
+        {
+          "name": "Get All Creators",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": {
+              "raw": "{{baseUrl}}/admin/creators?page=1&limit=10&search=democreator&verificationStatus=approved&isLive=false",
+              "host": ["{{baseUrl}}"],
+              "path": ["admin", "creators"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "democreator" },
+                { "key": "verificationStatus", "value": "approved" },
+                { "key": "isLive", "value": "false" }
+              ]
+            },
+            "event": [{ "listen": "test", "script": { "exec": ["const json = pm.response.json();", "const creator = json && json.data && json.data[0];", "if (creator && creator._id) pm.collectionVariables.set('creatorId', creator._id);"], "type": "text/javascript" } }]
+          }
+        },
+        {
+          "name": "Get Creator Details",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/admin/creators/{{creatorId}}", "host": ["{{baseUrl}}"], "path": ["admin", "creators", "{{creatorId}}"] }
+          }
+        },
+        {
+          "name": "Approve Creator",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/admin/creators/{{creatorId}}/approve", "host": ["{{baseUrl}}"], "path": ["admin", "creators", "{{creatorId}}", "approve"] }
+          }
+        },
+        {
+          "name": "Reject Creator",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Identity verification failed\"\n}" },
+            "url": { "raw": "{{baseUrl}}/admin/creators/{{creatorId}}/reject", "host": ["{{baseUrl}}"], "path": ["admin", "creators", "{{creatorId}}", "reject"] }
+          }
+        },
+        {
+          "name": "Suspend Creator",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Repeated community guideline violations\"\n}" },
+            "url": { "raw": "{{baseUrl}}/admin/creators/{{creatorId}}/suspend", "host": ["{{baseUrl}}"], "path": ["admin", "creators", "{{creatorId}}", "suspend"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Content",
+      "item": [
+        {
+          "name": "Get All Posts",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/admin/content/posts?page=1&limit=10&search=demo&visibility=public&isDeleted=false", "host": ["{{baseUrl}}"], "path": ["admin", "content", "posts"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "10" }, { "key": "search", "value": "demo" }, { "key": "visibility", "value": "public" }, { "key": "isDeleted", "value": "false" }] }
+          }
+        },
+        {
+          "name": "Get Post Details",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": { "raw": "{{baseUrl}}/admin/content/posts/{{postId}}", "host": ["{{baseUrl}}"], "path": ["admin", "content", "posts", "{{postId}}"] } }
+        },
+        {
+          "name": "Hide Post",
+          "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }], "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Policy violation\"\n}" }, "url": { "raw": "{{baseUrl}}/admin/content/posts/{{postId}}/hide", "host": ["{{baseUrl}}"], "path": ["admin", "content", "posts", "{{postId}}", "hide"] } }
+        },
+        {
+          "name": "Restore Post",
+          "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": { "raw": "{{baseUrl}}/admin/content/posts/{{postId}}/restore", "host": ["{{baseUrl}}"], "path": ["admin", "content", "posts", "{{postId}}", "restore"] } }
+        },
+        {
+          "name": "Get All Comments",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": { "raw": "{{baseUrl}}/admin/content/comments?page=1&limit=10&search=demo&isDeleted=false", "host": ["{{baseUrl}}"], "path": ["admin", "content", "comments"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "10" }, { "key": "search", "value": "demo" }, { "key": "isDeleted", "value": "false" }] } }
+        },
+        {
+          "name": "Get Comment Details",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": { "raw": "{{baseUrl}}/admin/content/comments/{{commentId}}", "host": ["{{baseUrl}}"], "path": ["admin", "content", "comments", "{{commentId}}"] } }
+        },
+        {
+          "name": "Restore Comment",
+          "request": { "method": "PATCH", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": { "raw": "{{baseUrl}}/admin/content/comments/{{commentId}}/restore", "host": ["{{baseUrl}}"], "path": ["admin", "content", "comments", "{{commentId}}", "restore"] } }
+        }
+      ]
+    },
+    {
+      "name": "Admin Activity",
+      "item": [{ "name": "Get Admin Activity", "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": { "raw": "{{baseUrl}}/admin/activity?page=1&limit=20&targetType=payout", "host": ["{{baseUrl}}"], "path": ["admin", "activity"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "20" }, { "key": "action", "value": "" }, { "key": "targetType", "value": "payout" }] } } }]
+    },
+    {
+      "name": "Admin Notifications",
+      "item": [
+        {
+          "name": "Get All Notifications",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/admin/notifications?page=1&limit=10&search=Welcome&type=system&isRead=false", "host": ["{{baseUrl}}"], "path": ["admin", "notifications"], "query": [{ "key": "page", "value": "1" }, { "key": "limit", "value": "10" }, { "key": "search", "value": "Welcome" }, { "key": "type", "value": "system" }, { "key": "isRead", "value": "false" }] },
+            "event": [{ "listen": "test", "script": { "exec": ["const json = pm.response.json();", "const notification = json && json.data && json.data[0];", "if (notification && notification._id) pm.collectionVariables.set('notificationId', notification._id);"], "type": "text/javascript" } }]
+          }
+        },
+        {
+          "name": "Get Notification Details",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": { "raw": "{{baseUrl}}/admin/notifications/{{notificationId}}", "host": ["{{baseUrl}}"], "path": ["admin", "notifications", "{{notificationId}}"] } }
+        },
+        {
+          "name": "Get Unread Notification Count",
+          "request": { "method": "GET", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": { "raw": "{{baseUrl}}/admin/notifications/unread-count", "host": ["{{baseUrl}}"], "path": ["admin", "notifications", "unread-count"] } }
+        },
+        {
+          "name": "Mark Notification Read",
+          "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": { "raw": "{{baseUrl}}/admin/notifications/{{notificationId}}/read", "host": ["{{baseUrl}}"], "path": ["admin", "notifications", "{{notificationId}}", "read"] } }
+        },
+        {
+          "name": "Mark All Notifications Read",
+          "request": { "method": "PUT", "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }], "url": { "raw": "{{baseUrl}}/admin/notifications/read-all", "host": ["{{baseUrl}}"], "path": ["admin", "notifications", "read-all"] } }
+        },
+        {
+          "name": "Send Notification",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"userId\": \"{{userId}}\",\n  \"type\": \"system\",\n  \"title\": \"Account notice\",\n  \"body\": \"Your account was reviewed by an administrator.\",\n  \"data\": {\n    \"targetType\": \"user\",\n    \"targetId\": \"{{userId}}\",\n    \"action\": \"open_profile\"\n  },\n  \"sendPush\": false\n}" },
+            "url": { "raw": "{{baseUrl}}/admin/notifications/send", "host": ["{{baseUrl}}"], "path": ["admin", "notifications", "send"] }
+          }
+        },
+        {
+          "name": "Broadcast Notification",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"all\": true,\n  \"type\": \"system\",\n  \"title\": \"Platform maintenance\",\n  \"body\": \"The platform will be unavailable tonight.\",\n  \"dedupeKey\": \"maintenance-2026-08-23\",\n  \"sendPush\": false\n}" },
+            "url": { "raw": "{{baseUrl}}/admin/notifications/broadcast", "host": ["{{baseUrl}}"], "path": ["admin", "notifications", "broadcast"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Chats",
+      "item": [
+        {
+          "name": "Get All Chats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/chats?page=1&limit=10&search=lokesh",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "chats"
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "lokesh", "description": "Matches participant username, email, or display name" }
+              ]
+            },
+            "description": "List conversations newest first with participant account details and last message preview.",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "const json = pm.response.json();",
+                    "const firstChat = json && json.data && json.data[0];",
+                    "if (firstChat && firstChat._id) pm.collectionVariables.set('conversationId', firstChat._id);"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Get Chat Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/chats/{{conversationId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "chats",
+                "{{conversationId}}"
+              ]
+            },
+            "description": "View both participant accounts, last message, unread counts, and total visible message count."
+          }
+        },
+        {
+          "name": "Get Chat Messages",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/chats/{{conversationId}}/messages?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "chats",
+                "{{conversationId}}",
+                "messages"
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" }
+              ]
+            },
+            "description": "View message text, type, read status, timestamps, and sender account details. Messages are returned oldest first within the requested page."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Payments",
+      "item": [
+        {
+          "name": "Get All Payments",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/payments?page=1&limit=10&search=demofan&type=coin_purchase&status=completed",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "payments"
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "demofan", "description": "Matches username, email, description, or gateway transaction ID" },
+                { "key": "type", "value": "coin_purchase", "description": "Transaction type" },
+                { "key": "status", "value": "completed", "description": "pending, completed, failed, or refunded" }
+              ]
+            },
+            "description": "List all coin purchases and wallet transactions. Newest payments appear first.",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "const json = pm.response.json();",
+                    "const firstPayment = json && json.data && json.data[0];",
+                    "if (firstPayment && firstPayment._id) pm.collectionVariables.set('paymentId', firstPayment._id);"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Get Payment Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/payments/{{paymentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "payments",
+                "{{paymentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Payouts",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/payouts?page=1&limit=10&search=democreator&status=pending&method=bank",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "payouts"
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "democreator", "description": "Matches creator username or email" },
+                { "key": "status", "value": "pending", "description": "pending, approved, processing, completed, failed, or rejected" },
+                { "key": "method", "value": "bank", "description": "bank, upi, or razorpay" }
+              ]
+            },
+            "description": "List withdrawal requests for admin review. Newest payouts appear first.",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "const json = pm.response.json();",
+                    "const firstPayout = json && json.data && json.data[0];",
+                    "if (firstPayout && firstPayout._id) pm.collectionVariables.set('payoutId', firstPayout._id);"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Get Payout Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/payouts/{{payoutId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "payouts",
+                "{{payoutId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Approve Payout",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/payouts/{{payoutId}}/approve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "payouts",
+                "{{payoutId}}",
+                "approve"
+              ]
+            },
+            "description": "Approve a pending payout for processing. This records admin approval; it does not call the payment provider."
+          }
+        },
+        {
+          "name": "Reject Payout",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Bank details could not be verified\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/payouts/{{payoutId}}/reject",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "payouts",
+                "{{payoutId}}",
+                "reject"
+              ]
+            },
+            "description": "Reject a pending or approved payout. The rejection reason is saved with the payout and audit log."
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Reports",
+      "item": [
+        {
+          "name": "Get All Reports",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/reports?page=1&limit=10&search=nudity&status=pending&targetType=post&reason=nudity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "reports"
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "search", "value": "nudity", "description": "Matches report description or reporter username, email, or display name" },
+                { "key": "status", "value": "pending", "description": "pending, reviewed, or resolved" },
+                { "key": "targetType", "value": "post", "description": "user, post, live, or message" },
+                { "key": "reason", "value": "nudity", "description": "Filter by report reason" }
+              ]
+            },
+            "description": "Newest reports appear first. Search and filters can be combined.",
+            "event": [
+              {
+                "listen": "test",
+                "script": {
+                  "exec": [
+                    "const json = pm.response.json();",
+                    "const firstReport = json && json.data && json.data[0];",
+                    "if (firstReport && firstReport._id) pm.collectionVariables.set('reportId', firstReport._id);"
+                  ],
+                  "type": "text/javascript"
+                }
+              }
+            ]
+          }
+        },
+        {
+          "name": "Get Report Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/reports/{{reportId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "reports",
+                "{{reportId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Resolve Report",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"resolution\": \"Warning issued and content reviewed\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/reports/{{reportId}}/resolve",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "reports",
+                "{{reportId}}",
+                "resolve"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Dismiss Report",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"False report\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/reports/{{reportId}}/dismiss",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "reports",
+                "{{reportId}}",
+                "dismiss"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Content Moderation",
+      "item": [
+        {
+          "name": "Delete Post",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Inappropriate content\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/posts/{{postId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "posts",
+                "{{postId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Comment",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Harassment\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/comments/{{commentId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "comments",
+                "{{commentId}}"
+              ]
+            }
+          }
+        },
+        {
+          "name": "Delete Live Stream",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Policy violation\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/admin/content/live/{{liveId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "content",
+                "live",
+                "{{liveId}}"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin Stats",
+      "item": [
+        {
+          "name": "Dashboard Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats/dashboard?from=2026-08-21T00:00:00.000Z&to=2026-08-22T00:00:00.000Z&role=creator&reportStatus=pending",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "stats",
+                "dashboard"
+              ],
+              "query": [
+                { "key": "from", "value": "2026-08-21T00:00:00.000Z", "description": "Optional ISO date; defaults to 24 hours before to" },
+                { "key": "to", "value": "2026-08-22T00:00:00.000Z", "description": "Optional ISO date; defaults to now" },
+                { "key": "role", "value": "creator", "description": "Optional user role filter" },
+                { "key": "reportStatus", "value": "pending", "description": "Optional report status filter" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "User Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats/users?from=2026-08-21T00:00:00.000Z&to=2026-08-22T00:00:00.000Z&role=creator&isVerified=true&isBanned=false",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "stats",
+                "users"
+              ],
+              "query": [
+                { "key": "from", "value": "2026-08-21T00:00:00.000Z" },
+                { "key": "to", "value": "2026-08-22T00:00:00.000Z" },
+                { "key": "role", "value": "creator" },
+                { "key": "isVerified", "value": "true" },
+                { "key": "isBanned", "value": "false" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Report Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats/reports?from=2026-08-21T00:00:00.000Z&to=2026-08-22T00:00:00.000Z&status=pending&targetType=post&reason=nudity",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "stats",
+                "reports"
+              ],
+              "query": [
+                { "key": "from", "value": "2026-08-21T00:00:00.000Z" },
+                { "key": "to", "value": "2026-08-22T00:00:00.000Z" },
+                { "key": "status", "value": "pending" },
+                { "key": "targetType", "value": "post" },
+                { "key": "reason", "value": "nudity" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Financial Stats",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/stats/financial?from=2026-08-21T00:00:00.000Z&to=2026-08-22T00:00:00.000Z&type=coin_purchase&status=completed&paymentGateway=razorpay",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "stats",
+                "financial"
+              ],
+              "query": [
+                { "key": "from", "value": "2026-08-21T00:00:00.000Z" },
+                { "key": "to", "value": "2026-08-22T00:00:00.000Z" },
+                { "key": "type", "value": "coin_purchase" },
+                { "key": "status", "value": "completed" },
+                { "key": "paymentGateway", "value": "razorpay" }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Logs and Live",
+      "item": [
+        {
+          "name": "Moderation Log",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/logs/moderation?page=1&limit=50",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "logs",
+                "moderation"
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "50" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get All Live Streams",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/admin/live?page=1&limit=10&status=live&search=democreator",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "admin",
+                "live"
+              ],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "10" },
+                { "key": "status", "value": "live", "description": "waiting, live, or ended" },
+                { "key": "search", "value": "democreator", "description": "Matches title, category, username, email, or display name" }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Live Stream Details",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }],
+            "url": { "raw": "{{baseUrl}}/admin/live/{{liveId}}", "host": ["{{baseUrl}}"], "path": ["admin", "live", "{{liveId}}"] }
+          }
+        },
+        {
+          "name": "Warn Live Stream",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Unsafe live stream content\"\n}" },
+            "url": { "raw": "{{baseUrl}}/admin/live/{{liveId}}/warn", "host": ["{{baseUrl}}"], "path": ["admin", "live", "{{liveId}}", "warn"] }
+          }
+        },
+        {
+          "name": "Stop Live Stream",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{adminToken}}" }, { "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"reason\": \"Policy violation\"\n}" },
+            "url": { "raw": "{{baseUrl}}/admin/live/{{liveId}}/stop", "host": ["{{baseUrl}}"], "path": ["admin", "live", "{{liveId}}", "stop"] }
+          }
+        }
+      ]
+    }
+  ]
+}
