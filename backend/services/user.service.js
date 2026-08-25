@@ -1,14 +1,15 @@
-const User = require('../models/User.model');
 const Creator = require('../models/Creator.model');
 const SubscriptionTier = require('../models/SubscriptionTier.model');
 const Subscription = require('../models/Subscription.model');
 const Wallet = require('../models/Wallet.model');
 const AppError = require('../utils/AppError');
 const notificationService = require('./notification.service');
+const { getAuthModels } = require('../config/database');
 
 class UserService {
   async updateProfile(userId, data) {
-    const user = await User.findById(userId);
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(userId);
     if (!user) throw new AppError('NOT_FOUND', 404, 'User not found');
 
     if (data.displayName !== undefined) user.displayName = data.displayName;
@@ -20,7 +21,8 @@ class UserService {
   }
 
   async getSettings(userId) {
-    const user = await User.findById(userId).select('settings');
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(userId).select('settings');
     return user?.settings || {};
   }
 
@@ -28,7 +30,8 @@ class UserService {
     if (!token) {
       throw new AppError('VALIDATION_ERROR', 400, 'Push token is required');
     }
-    const user = await User.findById(userId);
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(userId);
     if (!user) throw new AppError('NOT_FOUND', 404, 'User not found');
 
     user.fcmTokens = user.fcmTokens || [];
@@ -40,7 +43,8 @@ class UserService {
   }
 
   async updateSettings(userId, settings) {
-    const user = await User.findById(userId);
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(userId);
     if (!user) throw new AppError('NOT_FOUND', 404, 'User not found');
 
     user.settings = {

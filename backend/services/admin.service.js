@@ -12,6 +12,7 @@ const Creator = require('../models/Creator.model');
 const BankPaymentMethod = require('../models/BankPaymentMethod.model');
 const UpiPaymentMethod = require('../models/UpiPaymentMethod.model');
 const AppError = require('../utils/AppError');
+const { getAuthModels } = require('../config/database');
 
 const getAnalyticsRange = ({ from, to } = {}) => {
   const end = to ? new Date(to) : new Date();
@@ -163,7 +164,8 @@ class AdminService {
   async updateCreatorStatus(creatorId, status, adminId, reason) {
     const creator = await Creator.findById(creatorId);
     if (!creator) throw new AppError('NOT_FOUND', 404, 'Creator not found');
-    const user = await User.findById(creator.userId);
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(creator.userId);
     if (!user) throw new AppError('NOT_FOUND', 404, 'Creator user not found');
     creator.verificationStatus = status;
     if (status === 'approved') {
@@ -182,7 +184,8 @@ class AdminService {
   async suspendCreator(creatorId, reason, adminId) {
     const creator = await Creator.findById(creatorId);
     if (!creator) throw new AppError('NOT_FOUND', 404, 'Creator not found');
-    const user = await User.findByIdAndUpdate(creator.userId, { isBanned: true, banReason: reason || 'Creator suspended' }, { new: true });
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findByIdAndUpdate(creator.userId, { isBanned: true, banReason: reason || 'Creator suspended' }, { new: true });
     if (!user) throw new AppError('NOT_FOUND', 404, 'Creator user not found');
     await AdminAction.create({ adminId, action: 'suspend_creator', targetType: 'creator', targetId: creatorId, reason: reason || 'Creator suspended' });
     return { suspended: true, creator, user: user.toPublicJSON() };
@@ -429,6 +432,7 @@ class AdminService {
 
   // ==== User Management ====
   async getAllUsers({ skip, limit, search, role, isBanned }) {
+    const { User: AuthUser } = getAuthModels();
     const filter = { isDeleted: false };
 
     if (search) {
@@ -443,12 +447,12 @@ class AdminService {
     if (isBanned) filter.isBanned = isBanned === 'true';
 
     const [users, total] = await Promise.all([
-      User.find(filter)
+      AuthUser.find(filter)
         .select('-passwordHash -fcmTokens')
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit),
-      User.countDocuments(filter),
+      AuthUser.countDocuments(filter),
     ]);
 
     return [
@@ -470,7 +474,8 @@ class AdminService {
   }
 
   async getUserDetails(userId) {
-    const user = await User.findById(userId).select('-passwordHash -fcmTokens');
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(userId).select('-passwordHash -fcmTokens');
     if (!user) throw new AppError('NOT_FOUND', 404, 'User not found');
 
     const postCount = await Post.countDocuments({ userId, isDeleted: false });
@@ -487,7 +492,8 @@ class AdminService {
   }
 
   async getUserPaymentMethods(userId) {
-    const user = await User.findById(userId).select('_id username email displayName');
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(userId).select('_id username email displayName');
     if (!user) throw new AppError('NOT_FOUND', 404, 'User not found');
 
     const [bankMethods, upiMethods] = await Promise.all([
@@ -505,7 +511,8 @@ class AdminService {
   }
 
   async deleteUserPaymentMethod(userId, paymentMethodId, adminId) {
-    const user = await User.findById(userId).select('_id');
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(userId).select('_id');
     if (!user) throw new AppError('NOT_FOUND', 404, 'User not found');
 
     let deletedMethod = await BankPaymentMethod.findOneAndDelete({ _id: paymentMethodId, userId });
@@ -528,7 +535,8 @@ class AdminService {
   }
 
   async banUser(userId, reason, adminId) {
-    const user = await User.findById(userId);
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(userId);
     if (!user) throw new AppError('NOT_FOUND', 404, 'User not found');
 
     user.isBanned = true;
@@ -547,7 +555,8 @@ class AdminService {
   }
 
   async unbanUser(userId, adminId) {
-    const user = await User.findById(userId);
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(userId);
     if (!user) throw new AppError('NOT_FOUND', 404, 'User not found');
 
     user.isBanned = false;
@@ -569,7 +578,8 @@ class AdminService {
       throw new AppError('VALIDATION_ERROR', 400, 'Invalid role');
     }
 
-    const user = await User.findById(userId);
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(userId);
     if (!user) throw new AppError('NOT_FOUND', 404, 'User not found');
 
     const oldRole = user.role;
