@@ -746,13 +746,14 @@ class AdminService {
     if (role) userFilter.role = role;
     const reportFilter = { createdAt: range.dateFilter };
     if (reportStatus) reportFilter.status = reportStatus;
-    const [totalUsers, bannedUsers, totalReports, pendingReports, totalPosts, totalLive] = await Promise.all([
+    const [totalUsers, bannedUsers, totalReports, pendingReports, totalPosts, totalLive, financial] = await Promise.all([
       User.countDocuments(userFilter),
       User.countDocuments({ ...userFilter, isBanned: true }),
       Report.countDocuments(reportFilter),
       Report.countDocuments({ ...reportFilter, status: 'pending' }),
       Post.countDocuments({ isDeleted: false, createdAt: range.dateFilter }),
       LiveRoom.countDocuments({ status: 'live', createdAt: range.dateFilter }),
+      this.getFinancialStats({ from: range.start.toISOString(), to: range.end.toISOString() }),
     ]);
 
     return {
@@ -770,6 +771,11 @@ class AdminService {
         posts: totalPosts,
         liveStreams: totalLive,
       },
+      totalRevenue: financial.totalRevenue,
+      totalPayouts: financial.totalPayouts,
+      profit: financial.profit,
+      transactionCount: financial.transactionCount,
+      payoutCount: financial.payoutCount,
       range: { from: range.start, to: range.end },
       timestamp: new Date(),
     };
@@ -848,30 +854,61 @@ class AdminService {
 
   async getFinancialStats({ from, to, type, status, paymentGateway } = {}) {
     const range = getAnalyticsRange({ from, to });
-    const transactionFilter = { createdAt: range.dateFilter };
+    const transactionFilter = { createdAt: range.dateFilter, status: status || 'completed' };
     if (type) transactionFilter.type = type;
     if (status) transactionFilter.status = status;
     if (paymentGateway) transactionFilter.paymentGateway = paymentGateway;
 
-    const [revenue, payoutTotals] = await Promise.all([
+    const [financialTotals] = await Promise.all([
       Transaction.aggregate([
-        { $match: { ...transactionFilter, status: status || 'completed' } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
-      ]),
-      Payout.aggregate([
-        { $match: { createdAt: range.dateFilter, status: { $in: ['approved', 'processing', 'completed'] } } },
-        { $group: { _id: null, total: { $sum: '$amount' } } },
+        { $match: transactionFilter },
+        {
+          $group: {
+            _id: null,
+            totalRevenue: {
+              $sum: {
+                $cond: [
+                  { $eq: ['$type', 'coin_purchase'] },
+                  { $cond: [{ $gt: ['$amount', 0] }, '$amount', { $multiply: ['$coinAmount', 125] }] },
+                  0,
+                ],
+              },
+            },
+            rechargeCharges: {
+              $sum: {
+                $cond: [
+                  { $eq: ['$type', 'coin_purchase'] },
+                  {
+                    $subtract: [
+                      { $cond: [{ $gt: ['$amount', 0] }, '$amount', { $multiply: ['$coinAmount', 125] }] },
+                      { $multiply: ['$coinAmount', 100] },
+                    ],
+                  },
+                  0,
+                ],
+              },
+            },
+            totalWithdrawals: {
+              $sum: { $cond: [{ $eq: ['$type', 'withdrawal'] }, '$amount', 0] },
+            },
+            withdrawalCharges: {
+              $sum: { $cond: [{ $eq: ['$type', 'withdrawal'] }, { $multiply: ['$amount', 0.2] }, 0] },
+            },
+          },
+        },
       ]),
     ]);
 
-    const totalRevenue = revenue[0]?.total || 0;
-    const totalPayouts = payoutTotals[0]?.total || 0;
+    const totals = financialTotals[0] || {};
+    const totalRevenue = totals.totalRevenue || 0;
+    const totalPayouts = totals.totalWithdrawals || 0;
+    const profit = (totals.rechargeCharges || 0) + (totals.withdrawalCharges || 0);
     return {
       totalRevenue,
       totalPayouts,
-      profit: totalRevenue - totalPayouts,
+      profit,
       transactionCount: await Transaction.countDocuments({ ...transactionFilter, status: status || 'completed' }),
-      payoutCount: await Payout.countDocuments({ createdAt: range.dateFilter, status: { $in: ['approved', 'processing', 'completed'] } }),
+      payoutCount: await Transaction.countDocuments({ ...transactionFilter, type: 'withdrawal' }),
       range: { from: range.start, to: range.end },
       timestamp: new Date(),
     };

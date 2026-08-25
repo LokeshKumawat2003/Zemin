@@ -57,14 +57,21 @@ export const BuyCoinsScreen = ({ navigation }: Props) => {
 
         RazorpayCheckout.open(options)
           .then(async (paymentResult: any) => {
-            await paymentApi.verifyPayment({
-              gateway: 'razorpay',
-              orderId: paymentResult.razorpay_order_id,
-              paymentId: paymentResult.razorpay_payment_id,
-              signature: paymentResult.razorpay_signature,
-            });
-            Alert.alert('Success', 'Coins purchased successfully!');
-            navigation.goBack();
+            try {
+              await paymentApi.verifyPayment({
+                gateway: 'razorpay',
+                orderId: paymentResult.razorpay_order_id,
+                paymentId: paymentResult.razorpay_payment_id,
+                signature: paymentResult.razorpay_signature,
+              });
+              Alert.alert('Success', 'Coins purchased successfully!');
+              navigation.goBack();
+            } catch (error: any) {
+              Alert.alert(
+                'Payment verification failed',
+                error?.error?.message || error?.message || 'Please contact support if money was deducted.'
+              );
+            }
           })
           .catch((error: any) => {
             Alert.alert('Payment failed', error?.description || 'Unable to complete payment.');

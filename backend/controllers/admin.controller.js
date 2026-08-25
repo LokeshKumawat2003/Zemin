@@ -471,7 +471,8 @@ exports.getReportStats = async (req, res, next) => {
 
 exports.getFinancialStats = async (req, res, next) => {
   try {
-    const { from, to, type, status, paymentGateway } = req.query;
+    const { from, to, status, paymentGateway } = req.query;
+    const type = req.query.type || req.query.paymentType;
     const data = await adminService.getFinancialStats({ from, to, type, status, paymentGateway });
     success(res, data);
   } catch (err) {

@@ -92,10 +92,23 @@ class PaymentService {
     return true;
   }
 
+  async fetchRazorpayPayment(orderId, paymentId) {
+    try {
+      return await this.razorpay.payments.fetch(paymentId);
+    } catch (err) {
+      if (err.statusCode !== 404 || !this.razorpay.orders?.fetchPayments) {
+        throw err;
+      }
+
+      const payments = await this.razorpay.orders.fetchPayments(orderId);
+      return payments.items?.find((item) => item.id === paymentId) || null;
+    }
+  }
+
   async verifyPayment({ gateway, orderId, paymentId, signature, sessionId }) {
     if (gateway === 'razorpay') {
       this.verifyRazorpaySignature({ orderId, paymentId, signature });
-      const payment = await this.razorpay.payments.fetch(paymentId);
+      const payment = await this.fetchRazorpayPayment(orderId, paymentId);
       if (!payment || payment.status !== 'captured') {
         throw new AppError('PAYMENT_NOT_CAPTURED', 400, 'Razorpay payment was not captured');
       }
@@ -109,10 +122,12 @@ class PaymentService {
         throw new AppError('INVALID_PAYMENT_NOTES', 400, 'Payment metadata must include userId and packageId');
       }
 
+      const purchasePackage = walletService.resolvePurchasePackage(notes.packageId);
       await walletService.addCoins(
         notes.userId,
-        walletService.resolvePurchasePackage(notes.packageId).totalCoins,
-        `Purchased ${notes.packageId} via Razorpay`
+        purchasePackage.totalCoins,
+        `Purchased ${notes.packageId} via Razorpay`,
+        payment.amount
       );
 
       try {
