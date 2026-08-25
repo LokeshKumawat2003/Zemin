@@ -127,7 +127,12 @@ class PaymentService {
         notes.userId,
         purchasePackage.totalCoins,
         `Purchased ${notes.packageId} via Razorpay`,
-        payment.amount
+        payment.amount,
+        {
+          currency: payment.currency || 'INR',
+          paymentGateway: 'razorpay',
+          gatewayTransactionId: paymentId,
+        }
       );
 
       try {

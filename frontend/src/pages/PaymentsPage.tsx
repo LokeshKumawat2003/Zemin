@@ -7,7 +7,7 @@ import { Pagination } from "../components/dashboard/Pagination";
 
 type Payment = ApiRecord & { _id?: string; type?: string; amount?: number; coinAmount?: number; currency?: string; status?: string; description?: string; paymentGateway?: string; gatewayTransactionId?: string; createdAt?: string; updatedAt?: string; userId?: ApiRecord; metadata?: ApiRecord };
 const getRows = (value: unknown): Payment[] => Array.isArray(value) ? value.filter((item): item is Payment => Boolean(item && typeof item === "object")) : [];
-const money = (amount?: number, currency = "INR") => `${currency} ${(amount || 0).toLocaleString()}`;
+const money = (amount?: number, currency = "INR") => `${currency} ${((amount || 0) / 100).toLocaleString()}`;
 const pretty = (value?: string) => value ? value.replace(/_/g, " ") : "-";
 const Field = ({ label, value }: { label: string; value: unknown }) => <Box><Text fontSize="xs" color="gray.500" fontWeight="700" textTransform="uppercase">{label}</Text><Text mt={1} fontWeight="600" wordBreak="break-word">{value === null || value === undefined || value === "" ? "-" : String(value)}</Text></Box>;
 

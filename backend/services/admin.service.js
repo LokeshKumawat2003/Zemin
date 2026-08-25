@@ -346,11 +346,18 @@ class AdminService {
   }
 
   async getPaymentDetails(paymentId) {
-    const payment = await Transaction.findById(paymentId)
-      .populate('userId', 'username email displayName role phone')
-      .lean();
+    const payment = await Transaction.findById(paymentId).lean();
     if (!payment) throw new AppError('NOT_FOUND', 404, 'Payment not found');
-    return payment;
+
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(payment.userId)
+      .select('username email displayName role phone')
+      .lean();
+    return {
+      ...payment,
+      paymentGateway: payment.paymentGateway || (payment.type === 'coin_purchase' ? 'razorpay' : undefined),
+      userId: user || payment.userId,
+    };
   }
 
   async getAllPayouts({ skip, limit, search, status, method }) {
@@ -944,11 +951,12 @@ class AdminService {
 
   // ==== Live Management ====
   async getAllLiveStreams({ skip, limit, status, search }) {
+    const { User: AuthUser } = getAuthModels();
     const filter = {};
     if (status) filter.status = status;
     if (search) {
       const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      const matchingUsers = await User.find({
+      const matchingUsers = await AuthUser.find({
         $or: [
           { username: { $regex: escapedSearch, $options: 'i' } },
           { email: { $regex: escapedSearch, $options: 'i' } },
@@ -963,37 +971,35 @@ class AdminService {
     }
     const [streams, total] = await Promise.all([
       LiveRoom.find(filter)
-        .populate('userId', 'username email displayName avatar role isVerified isBanned')
-        .populate({
-          path: 'hostId',
-          select: 'userId categories verificationStatus isLive',
-          populate: {
-            path: 'userId',
-            select: 'username email displayName avatar role isVerified isBanned',
-          },
-        })
         .sort({ createdAt: -1, _id: -1 })
         .skip(skip)
-        .limit(limit),
-      LiveRoom.countDocuments(),
+        .limit(limit)
+        .lean(),
+      LiveRoom.countDocuments(filter),
     ]);
 
-    return [streams, total];
+    const userIds = streams.map((stream) => stream.userId).filter(Boolean);
+    const users = await AuthUser.find({ _id: { $in: userIds } })
+      .select('username email displayName avatar role isVerified isBanned')
+      .lean();
+    const usersById = new Map(users.map((user) => [user._id.toString(), user]));
+    return [streams.map((stream) => ({
+      ...stream,
+      userId: usersById.get(stream.userId.toString()) || stream.userId,
+    })), total];
   }
 
   async getLiveStreamDetails(liveId) {
-    const stream = await LiveRoom.findById(liveId)
-      .populate('userId', 'username email displayName avatar role phone isVerified isBanned')
-      .populate({
-        path: 'hostId',
-        populate: {
-          path: 'userId',
-          select: 'username email displayName avatar role isVerified isBanned',
-        },
-      })
-      .lean();
+    const stream = await LiveRoom.findById(liveId).lean();
     if (!stream) throw new AppError('NOT_FOUND', 404, 'Live stream not found');
-    return { stream, reportCount: await Report.countDocuments({ targetType: 'live', targetId: liveId }) };
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(stream.userId)
+      .select('username email displayName avatar role phone isVerified isBanned')
+      .lean();
+    return {
+      stream: { ...stream, userId: user || stream.userId },
+      reportCount: await Report.countDocuments({ targetType: 'live', targetId: liveId }),
+    };
   }
 
   async warnLiveStream(liveId, reason, adminId) {

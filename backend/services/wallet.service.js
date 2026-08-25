@@ -77,7 +77,7 @@ class WalletService {
     return { ...pkg, totalCoins, currency: 'INR' };
   }
 
-  async addCoins(userId, coins, description = 'Coin purchase', amount = 0) {
+  async addCoins(userId, coins, description = 'Coin purchase', amount = 0, paymentDetails = {}) {
     if (coins < 100) {
       throw new AppError('MINIMUM_PURCHASE', 400, 'Minimum purchase is 100 coins');
     }
@@ -96,8 +96,11 @@ class WalletService {
       type: 'coin_purchase',
       amount,
       coinAmount: netCoins,
+      currency: paymentDetails.currency || 'INR',
       status: 'completed',
       description: `${description} (20% GST applied, net coins credited: ${netCoins})`,
+      paymentGateway: paymentDetails.paymentGateway,
+      gatewayTransactionId: paymentDetails.gatewayTransactionId,
     });
 
     return wallet;

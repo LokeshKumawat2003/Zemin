@@ -71,18 +71,22 @@ export const LiveStreamsPage = () => {
 
       {error && <Alert status="error" borderRadius="8px"><AlertIcon />{error}</Alert>}
 
-      <SimpleGrid columns={{ base: 1, md: 3 }} spacing={4}>
+      <SimpleGrid columns={{ base: 1, md: 4 }} spacing={4}>
         <Stat bg="white" border="1px solid" borderColor="gray.200" borderRadius="12px" p={4}>
           <StatLabel>Active rooms</StatLabel>
-          <StatNumber>{rooms.length}</StatNumber>
+          <StatNumber>{rooms.filter((room) => ["live", "waiting"].includes(String(room.status || "").toLowerCase())).length}</StatNumber>
         </Stat>
         <Stat bg="white" border="1px solid" borderColor="gray.200" borderRadius="12px" p={4}>
           <StatLabel>Current viewers</StatLabel>
           <StatNumber>{totalViewers.toLocaleString()}</StatNumber>
         </Stat>
         <Stat bg="white" border="1px solid" borderColor="gray.200" borderRadius="12px" p={4}>
-          <StatLabel>Room status</StatLabel>
-          <StatNumber>{rooms.length ? "Live" : "-"}</StatNumber>
+          <StatLabel>Ended rooms</StatLabel>
+          <StatNumber>{rooms.filter((room) => String(room.status || "").toLowerCase() === "ended").length}</StatNumber>
+        </Stat>
+        <Stat bg="white" border="1px solid" borderColor="gray.200" borderRadius="12px" p={4}>
+          <StatLabel>Total rooms</StatLabel>
+          <StatNumber>{rooms.length}</StatNumber>
         </Stat>
       </SimpleGrid>
 
