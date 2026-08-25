@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:3001/api/v1";
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL ;
 
 export type ApiRecord = Record<string, unknown>;
 
