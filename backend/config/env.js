@@ -8,6 +8,8 @@ const defaultAllowedOrigins = [
   'http://localhost:8081',
   'http://127.0.0.1:3000',
   'http://127.0.0.1:3001',
+  'https://zemin.alc.onl',
+  "https://zemin.alc.onl",
   'http://127.0.0.1:8081',
 ];
 
