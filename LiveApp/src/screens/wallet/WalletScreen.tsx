@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, Alert, ScrollView, TouchableOpacity } from 'react-native';
+import Icon from '@react-native-vector-icons/material-icons';
 import { Button } from '../../components/common/Button';
 import { colors, typography } from '../../theme';
-import { paymentApi, unwrapApiResponse, walletApi } from '../../api';
+import { unwrapApiResponse, walletApi } from '../../api';
 import { useAppSelector } from '../../redux/hooks';
 import { useNavigation } from '@react-navigation/native';
 import { useResponsive } from '../../hooks/useResponsive';
@@ -38,37 +39,28 @@ export const WalletScreen = () => {
     load();
   }, [load]);
 
-  const buyPackage = async (packageId: string) => {
-    try {
-      const res = unwrapApiResponse<any>(await walletApi.purchaseCoins(packageId));
-      Alert.alert('Success', res?.message || 'Coins added to your wallet!');
-      await load();
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || e?.error?.message || 'Purchase failed');
-    }
-  };
-
-  const withdrawEarnings = async () => {
-    try {
-      const res = unwrapApiResponse<any>(await walletApi.withdrawEarnings());
-      Alert.alert('Success', res?.message || 'Earnings withdrawn to your wallet.');
-      await load();
-    } catch (e: any) {
-      Alert.alert('Error', e?.message || e?.error?.message || 'Withdrawal failed');
-    }
-  };
-
   const styles = useMemo(
     () =>
       StyleSheet.create({
         container: { flex: 1 },
+        scrollContent: { paddingTop: sp(8), paddingBottom: sp(28) },
         heroCard: {
-          backgroundColor: colors.surface,
+          backgroundColor: '#21132a',
           borderRadius: sp(24),
           padding: sp(24),
           borderWidth: 1,
           borderColor: colors.border,
           marginBottom: sp(16),
+          overflow: 'hidden',
+        },
+        heroGlow: {
+          position: 'absolute',
+          width: sp(190),
+          height: sp(190),
+          borderRadius: sp(95),
+          right: -sp(70),
+          top: -sp(80),
+          backgroundColor: 'rgba(255,47,110,0.22)',
         },
         heroTopRow: {
           flexDirection: 'row',
@@ -90,12 +82,24 @@ export const WalletScreen = () => {
           marginTop: sp(2),
         },
         heroBadge: {
+          flexDirection: 'row',
+          alignItems: 'center',
           backgroundColor: 'rgba(255,47,110,0.16)',
           paddingHorizontal: sp(8),
           paddingVertical: sp(6),
           borderRadius: 999,
         },
         heroBadgeText: { color: colors.primary, fontWeight: '700', fontSize: fs(12) },
+        balanceRow: { flexDirection: 'row', alignItems: 'center' },
+        balanceIcon: {
+          width: sp(44),
+          height: sp(44),
+          borderRadius: sp(22),
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor: 'rgba(245,180,0,0.16)',
+          marginRight: sp(10),
+        },
         balanceLabel: {
           ...typography.bodySmall,
           fontSize: fs(14),
@@ -145,6 +149,7 @@ export const WalletScreen = () => {
           gap: sp(10),
           flexWrap: 'wrap',
         },
+        actionButton: { flex: 1, minWidth: sp(140), flexDirection: 'row', alignItems: 'center', gap: sp(6) },
         withdrawBtn: {
           paddingHorizontal: sp(16),
           height: sp(44),
@@ -192,20 +197,59 @@ export const WalletScreen = () => {
           fontSize: fs(13),
           lineHeight: fs(18),
         },
+        sectionHeader: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          marginBottom: sp(10),
+        },
+        sectionTitle: { color: colors.textPrimary, fontSize: fs(18), fontWeight: '800' },
+        sectionLink: { color: colors.primary, fontSize: fs(13), fontWeight: '700' },
+        packagesCard: {
+          backgroundColor: colors.surface,
+          borderRadius: sp(20),
+          padding: sp(16),
+          borderWidth: 1,
+          borderColor: colors.border,
+          marginBottom: sp(16),
+        },
+        packageRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: sp(12),
+          borderTopWidth: 1,
+          borderTopColor: colors.border,
+        },
+        packageCoinIcon: {
+          width: sp(38),
+          height: sp(38),
+          borderRadius: sp(19),
+          backgroundColor: 'rgba(245,180,0,0.14)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: sp(10),
+        },
+        packageInfo: { flex: 1 },
+        packageCoins: { color: colors.textPrimary, fontSize: fs(15), fontWeight: '700' },
+        packagePrice: { color: colors.textSecondary, fontSize: fs(12), marginTop: sp(3) },
+        packageAction: { color: colors.primary, fontSize: fs(13), fontWeight: '700' },
       }),
     [fs, sp]
   );
 
   return (
     <ScreenContainer style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
       <View style={styles.heroCard}>
+        <View style={styles.heroGlow} />
         <View style={styles.heroTopRow}>
           <View>
             <Text style={styles.heroEyebrow}>Wallet</Text>
             <Text style={styles.heroTitle}>Coins & rewards</Text>
           </View>
           <View style={styles.heroBadge}>
-            <Text style={styles.heroBadgeText}>⚡ Fast</Text>
+            <Icon name="bolt" size={fs(14)} color={colors.primary} />
+            <Text style={styles.heroBadgeText}>Fast</Text>
           </View>
         </View>
 
@@ -214,7 +258,12 @@ export const WalletScreen = () => {
           <ActivityIndicator size="large" color={colors.accent} style={styles.loader} />
         ) : (
           <>
-            <Text style={styles.balanceValue}>{balance?.coinBalance ?? user?.coinBalance ?? 0}</Text>
+            <View style={styles.balanceRow}>
+              <View style={styles.balanceIcon}>
+                <Icon name="monetization-on" size={fs(26)} color="#f5b400" />
+              </View>
+              <Text style={styles.balanceValue}>{balance?.coinBalance ?? user?.coinBalance ?? 0}</Text>
+            </View>
             <Text style={styles.fiat}>Wallet cash: ₹{(balance?.walletBalance ?? user?.walletBalance ?? 0).toLocaleString()}</Text>
             {balance?.availableEarnings != null && balance.availableEarnings > 0 ? (
               <Text style={styles.fiat}>Available payout: ₹{balance.availableEarnings.toLocaleString()}</Text>
@@ -241,23 +290,47 @@ export const WalletScreen = () => {
             ) : null}
 
             <View style={styles.actionRow}>
-              <Button title="🪙 Buy Coins" onPress={() => navigation.navigate('BuyCoins')} style={styles.buyScreenBtn} />
-              <Button title="💸 Withdraw" onPress={() => navigation.navigate('Withdraw')} style={styles.withdrawBtn} />
+              <Button title="Buy Coins" onPress={() => navigation.navigate('BuyCoins')} style={styles.buyScreenBtn} />
+              <Button title="Withdraw" onPress={() => navigation.navigate('Withdraw')} style={styles.withdrawBtn} />
 
             </View>
           </>
         )}
       </View>
 
+      <View style={styles.packagesCard}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Top up coins</Text>
+          <TouchableOpacity onPress={() => navigation.navigate('BuyCoins')}>
+            <Text style={styles.sectionLink}>View all</Text>
+          </TouchableOpacity>
+        </View>
+        {packages.length > 0 ? packages.slice(0, 3).map((item) => (
+          <TouchableOpacity key={item.id} style={styles.packageRow} onPress={() => navigation.navigate('BuyCoins')}>
+            <View style={styles.packageCoinIcon}>
+              <Icon name="monetization-on" size={fs(21)} color="#f5b400" />
+            </View>
+            <View style={styles.packageInfo}>
+              <Text style={styles.packageCoins}>{(item.coins + (item.bonusCoins || 0)).toLocaleString()} coins</Text>
+              <Text style={styles.packagePrice}>₹{(item.priceINR ?? 0).toLocaleString()}</Text>
+            </View>
+            <Text style={styles.packageAction}>Buy</Text>
+          </TouchableOpacity>
+        )) : (
+          <Text style={styles.infoText}>Coin packages will appear here when available.</Text>
+        )}
+      </View>
+
       <View style={styles.infoCard}>
         <View style={styles.infoIconBox}>
-          <Text style={styles.infoIcon}>✨</Text>
+          <Icon name="auto-awesome" size={fs(20)} color={colors.primary} />
         </View>
         <View style={styles.infoTextBox}>
           <Text style={styles.infoTitle}>Why keep coins?</Text>
           <Text style={styles.infoText}>Top up anytime to unlock exclusive content, support creators, and enjoy a smoother live experience.</Text>
         </View>
       </View>
+      </ScrollView>
     </ScreenContainer>
   );
 };
