@@ -29,6 +29,7 @@ import { useLiveSocket, LiveGiftPayload } from '../../hooks/useSocket';
 import { useAppSelector } from '../../redux/hooks';
 import { socketManager } from '../../socket/socketClient';
 import { isLiveKitConfigured } from '../../utils/livekit';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = NativeStackScreenProps<LiveStackParamList & DiscoverStackParamList, 'LiveViewer'>;
 
@@ -67,6 +68,7 @@ export const LiveViewerScreen = ({ route, navigation }: Props) => {
     viewerCount: initialViewerCount,
   } = route.params;
   const { width, height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isCompact = width < 380;
   const chatMaxHeight = Math.min(240, Math.max(180, height * 0.28));
 
@@ -339,7 +341,7 @@ export const LiveViewerScreen = ({ route, navigation }: Props) => {
           }
         />
 
-        <View style={styles.bottomBar}>
+        <View style={[styles.bottomBar, { bottom: Math.max(12, insets.bottom + 8) }]}>
           <View style={styles.inputWrap}>
             <TextInput
               style={styles.input}

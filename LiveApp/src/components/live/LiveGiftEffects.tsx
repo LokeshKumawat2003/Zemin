@@ -138,8 +138,9 @@ export const GiftPickerModal = ({
   onSelectGift,
 }: GiftPickerModalProps) => (
   <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-    <Pressable style={styles.modalOverlay} onPress={onClose}>
-      <Pressable style={styles.modalSheet} onPress={(e) => e.stopPropagation()}>
+    <View style={styles.modalOverlay}>
+      <Pressable style={styles.modalBackdrop} onPress={onClose} />
+      <View style={styles.modalSheet}>
         <View style={styles.modalHandle} />
         <View style={styles.modalHeader}>
           <Text style={styles.modalTitle}>Send a Gift</Text>
@@ -182,8 +183,8 @@ export const GiftPickerModal = ({
             }}
           />
         )}
-      </Pressable>
-    </Pressable>
+      </View>
+    </View>
   </Modal>
 );
 
@@ -209,6 +210,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.55)',
     justifyContent: 'flex-end',
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
   },
   modalSheet: {
     backgroundColor: colors.surface,
