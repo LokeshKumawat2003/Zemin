@@ -8,9 +8,9 @@ export const ActionButton = ({ children, ...props }: ButtonProps) => (
   <Button
     colorScheme="brand"
     h="42px"
-    maxW="80px"
     px={4}
-    w="auto"
+    w={{ base: "full", sm: "auto" }}
+    maxW={{ base: "full", sm: "none" }}
     flexShrink={0}
     whiteSpace="nowrap"
     {...props}

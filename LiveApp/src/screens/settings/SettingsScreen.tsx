@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Switch, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Switch, Alert, Image, TouchableOpacity } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { colors, typography, spacing } from '../../theme';
-import { userApi } from '../../api';
+import { uploadApi, userApi } from '../../api';
 import { NotificationService } from '../../services/notification.service';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { bootstrapAuth } from '../../redux/slices/authSlice';
@@ -17,6 +18,7 @@ export const SettingsScreen = ({ navigation }: Props) => {
   const user = useAppSelector((s) => s.auth.user);
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [bio, setBio] = useState(user?.bio || '');
+  const [avatarUri, setAvatarUri] = useState(user?.avatar);
   const [pushNotif, setPushNotif] = useState(true);
   const [liveAlerts, setLiveAlerts] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -51,7 +53,15 @@ export const SettingsScreen = ({ navigation }: Props) => {
   const save = async () => {
     setSaving(true);
     try {
-      await userApi.updateProfile({ displayName, bio });
+      let avatar = user?.avatar;
+      if (avatarUri && avatarUri !== user?.avatar) {
+        const formData = new FormData();
+        formData.append('file', { uri: avatarUri, type: 'image/jpeg', name: 'avatar.jpg' } as any);
+        formData.append('folder', 'avatars');
+        const upload = await uploadApi.uploadMedia(formData);
+        avatar = upload.data?.url;
+      }
+      await userApi.updateProfile({ displayName, bio, avatar });
       await userApi.updateSettings({
         notifications: { push: pushNotif, liveAlerts: liveAlerts },
       });
@@ -67,6 +77,13 @@ export const SettingsScreen = ({ navigation }: Props) => {
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.section}>Profile</Text>
+      <TouchableOpacity style={styles.avatarPicker} onPress={async () => {
+        const result = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 });
+        const uri = result.assets?.[0]?.uri;
+        if (uri) setAvatarUri(uri);
+      }} activeOpacity={0.8}>
+        {avatarUri ? <Image source={{ uri: avatarUri }} style={styles.avatar} /> : <Text style={styles.avatarText}>Add photo</Text>}
+      </TouchableOpacity>
       <Input label="Display Name" value={displayName} onChangeText={setDisplayName} />
       <Input label="Bio" value={bio} onChangeText={setBio} multiline />
 
@@ -100,4 +117,7 @@ const styles = StyleSheet.create({
   },
   rowLabel: { ...typography.body, color: colors.textPrimary },
   btn: { marginTop: spacing.md },
+  avatarPicker: { alignSelf: 'center', width: 112, height: 112, borderRadius: 56, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md, overflow: 'hidden' },
+  avatar: { width: '100%', height: '100%' },
+  avatarText: { ...typography.caption, color: colors.primary },
 });

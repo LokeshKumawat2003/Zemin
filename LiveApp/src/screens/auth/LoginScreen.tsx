@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -12,20 +12,68 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../../components/common/Button';
 import { Input } from '../../components/common/Input';
-import { colors, typography, spacing } from '../../theme';
+import { colors, typography } from '../../theme';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { loginUser, clearError } from '../../redux/slices/authSlice';
 import { AuthStackParamList } from '../../navigation/types';
 import { getAuthErrorMessage } from '../../utils/authErrors';
+import { useResponsive } from '../../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
 
 export const LoginScreen = ({ navigation }: Props) => {
   const dispatch = useAppDispatch();
   const { error } = useAppSelector((s) => s.auth);
+  const { fs, sp, contentMaxWidth } = useResponsive();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: { flex: 1, backgroundColor: colors.background },
+        content: {
+          flexGrow: 1,
+          padding: sp(24),
+          justifyContent: 'center',
+          width: '100%',
+          maxWidth: contentMaxWidth,
+          alignSelf: 'center',
+        },
+        logo: {
+          fontSize: fs(42),
+          fontWeight: '800',
+          color: colors.primary,
+          textAlign: 'center',
+          marginBottom: sp(8),
+        },
+        subtitle: {
+          ...typography.h3,
+          fontSize: fs(18),
+          lineHeight: fs(24),
+          color: colors.textPrimary,
+          textAlign: 'center',
+          marginBottom: sp(32),
+        },
+        button: { marginTop: sp(8) },
+        forgot: {
+          ...typography.bodySmall,
+          fontSize: fs(14),
+          color: colors.primary,
+          textAlign: 'center',
+          marginTop: sp(16),
+        },
+        hint: {
+          ...typography.caption,
+          fontSize: fs(12),
+          color: colors.textDisabled,
+          textAlign: 'center',
+          marginVertical: sp(16),
+        },
+      }),
+    [fs, sp, contentMaxWidth]
+  );
 
   const onLogin = async () => {
     if (!identifier || !password) {
@@ -85,29 +133,3 @@ export const LoginScreen = ({ navigation }: Props) => {
     </KeyboardAvoidingView>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
-  content: { flexGrow: 1, padding: spacing.lg, justifyContent: 'center' },
-  logo: {
-    fontSize: 42,
-    fontWeight: '800',
-    color: colors.primary,
-    textAlign: 'center',
-    marginBottom: spacing.sm,
-  },
-  subtitle: {
-    ...typography.h3,
-    color: colors.textPrimary,
-    textAlign: 'center',
-    marginBottom: spacing.xl,
-  },
-  button: { marginTop: spacing.sm },
-  forgot: { ...typography.bodySmall, color: colors.primary, textAlign: 'center', marginTop: spacing.md },
-  hint: {
-    ...typography.caption,
-    color: colors.textDisabled,
-    textAlign: 'center',
-    marginVertical: spacing.md,
-  },
-});

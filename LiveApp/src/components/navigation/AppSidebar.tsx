@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,6 @@ import {
   Animated,
   Pressable,
   Image,
-  Dimensions,
   Alert,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
@@ -15,8 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { logoutUser } from '../../redux/slices/authSlice';
-
-const SIDEBAR_WIDTH = Math.min(300, Dimensions.get('window').width * 0.82);
+import { useResponsive } from '../../hooks/useResponsive';
 
 type MenuItem = {
   id: string;
@@ -32,10 +30,17 @@ export const AppSidebar = () => {
   const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
   const insets = useSafeAreaInsets();
+  const { fs, sp, width } = useResponsive();
+
+  const sidebarWidth = Math.min(sp(300), width * 0.82);
 
   const [mounted, setMounted] = useState(false);
-  const slideAnim = useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
+  const slideAnim = useRef(new Animated.Value(-sidebarWidth)).current;
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    slideAnim.setValue(-sidebarWidth);
+  }, [sidebarWidth, slideAnim]);
 
   useEffect(() => {
     if (visible) {
@@ -48,12 +53,12 @@ export const AppSidebar = () => {
     }
 
     Animated.parallel([
-      Animated.timing(slideAnim, { toValue: -SIDEBAR_WIDTH, duration: 220, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: -sidebarWidth, duration: 220, useNativeDriver: true }),
       Animated.timing(fadeAnim, { toValue: 0, duration: 220, useNativeDriver: true }),
     ]).start(({ finished }) => {
       if (finished) setMounted(false);
     });
-  }, [visible, slideAnim, fadeAnim]);
+  }, [visible, slideAnim, fadeAnim, sidebarWidth]);
 
   const goTo = (tab: string, screen?: string) => {
     close();
@@ -112,6 +117,91 @@ export const AppSidebar = () => {
     },
   ];
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        overlay: {
+          ...StyleSheet.absoluteFillObject,
+          zIndex: 999,
+          elevation: 16,
+        },
+        backdrop: {
+          ...StyleSheet.absoluteFillObject,
+          backgroundColor: 'rgba(0,0,0,0.55)',
+        },
+        panel: {
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          bottom: 0,
+          backgroundColor: '#18151c',
+          borderRightWidth: 1,
+          borderRightColor: '#2a2530',
+        },
+        header: {
+          flexDirection: 'row',
+          alignItems: 'flex-start',
+          justifyContent: 'space-between',
+          paddingHorizontal: sp(16),
+          paddingBottom: sp(8),
+        },
+        profileRow: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          flex: 1,
+          marginRight: sp(8),
+        },
+        avatar: { width: sp(52), height: sp(52), borderRadius: sp(26) },
+        avatarFallback: {
+          backgroundColor: '#2a2530',
+          alignItems: 'center',
+          justifyContent: 'center',
+          borderWidth: 2,
+          borderColor: '#ff2f6e',
+        },
+        avatarText: { color: '#fff', fontSize: fs(22), fontWeight: '800' },
+        profileInfo: { marginLeft: sp(12), flex: 1 },
+        profileName: { color: '#fff', fontSize: fs(16), fontWeight: '800' },
+        profileHandle: { color: '#9b95a3', fontSize: fs(13), marginTop: sp(2) },
+        profileCoins: {
+          color: '#f5b400',
+          fontSize: fs(12),
+          fontWeight: '700',
+          marginTop: sp(6),
+        },
+        closeBtn: {
+          width: sp(32),
+          height: sp(32),
+          borderRadius: sp(16),
+          backgroundColor: '#211d27',
+          alignItems: 'center',
+          justifyContent: 'center',
+        },
+        closeBtnText: { color: '#9b95a3', fontSize: fs(16), fontWeight: '700' },
+        divider: {
+          height: 1,
+          backgroundColor: '#2a2530',
+          marginHorizontal: sp(16),
+          marginVertical: sp(12),
+        },
+        menu: { flex: 1, paddingHorizontal: sp(8) },
+        menuItem: {
+          flexDirection: 'row',
+          alignItems: 'center',
+          paddingVertical: sp(14),
+          paddingHorizontal: sp(12),
+          borderRadius: sp(12),
+          marginBottom: sp(4),
+        },
+        menuIcon: { fontSize: fs(20), width: sp(32) },
+        menuLabel: { color: '#fff', fontSize: fs(15), fontWeight: '600' },
+        menuLabelDanger: { color: '#ff2f6e' },
+        footer: { paddingHorizontal: sp(16), paddingTop: sp(8) },
+        footerText: { color: '#9b95a3', fontSize: fs(12) },
+      }),
+    [fs, sp]
+  );
+
   if (!mounted) return null;
 
   return (
@@ -124,9 +214,9 @@ export const AppSidebar = () => {
         style={[
           styles.panel,
           {
-            width: SIDEBAR_WIDTH,
-            paddingTop: insets.top + 12,
-            paddingBottom: insets.bottom + 12,
+            width: sidebarWidth,
+            paddingTop: insets.top + sp(12),
+            paddingBottom: insets.bottom + sp(12),
             transform: [{ translateX: slideAnim }],
           },
         ]}
@@ -184,69 +274,3 @@ export const AppSidebar = () => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 999,
-    elevation: 16,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
-  panel: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    bottom: 0,
-    backgroundColor: '#18151c',
-    borderRightWidth: 1,
-    borderRightColor: '#2a2530',
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingBottom: 8,
-  },
-  profileRow: { flexDirection: 'row', alignItems: 'center', flex: 1, marginRight: 8 },
-  avatar: { width: 52, height: 52, borderRadius: 26 },
-  avatarFallback: {
-    backgroundColor: '#2a2530',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#ff2f6e',
-  },
-  avatarText: { color: '#fff', fontSize: 22, fontWeight: '800' },
-  profileInfo: { marginLeft: 12, flex: 1 },
-  profileName: { color: '#fff', fontSize: 16, fontWeight: '800' },
-  profileHandle: { color: '#9b95a3', fontSize: 13, marginTop: 2 },
-  profileCoins: { color: '#f5b400', fontSize: 12, fontWeight: '700', marginTop: 6 },
-  closeBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#211d27',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  closeBtnText: { color: '#9b95a3', fontSize: 16, fontWeight: '700' },
-  divider: { height: 1, backgroundColor: '#2a2530', marginHorizontal: 16, marginVertical: 12 },
-  menu: { flex: 1, paddingHorizontal: 8 },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    marginBottom: 4,
-  },
-  menuIcon: { fontSize: 20, width: 32 },
-  menuLabel: { color: '#fff', fontSize: 15, fontWeight: '600' },
-  menuLabelDanger: { color: '#ff2f6e' },
-  footer: { paddingHorizontal: 16, paddingTop: 8 },
-  footerText: { color: '#9b95a3', fontSize: 12 },
-});

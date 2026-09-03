@@ -33,6 +33,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { adminRequest, adminRequestWithMeta, ApiRecord, endpoint } from "../../api/adminApi";
 import { useAdminProfile } from "../../hooks/useAdminProfile";
 
+import type { SidebarTab } from "./Sidebar";
+
 /**
  * Topbar shows the current workspace context and the active admin profile.
  * It keeps global actions such as sign out and notifications in one place.
@@ -40,6 +42,7 @@ import { useAdminProfile } from "../../hooks/useAdminProfile";
 type TopbarProps = {
   onOpen: () => void;
   role: string;
+  activeTab?: SidebarTab;
   onRoleChange: (role: string) => void;
   onSignOut: () => void;
 };

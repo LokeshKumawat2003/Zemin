@@ -1,15 +1,17 @@
-import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator } from 'react-native';
-// import RazorpayCheckout from 'react-native-razorpay';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Alert } from 'react-native';
 import { Button } from '../../components/common/Button';
-import { colors, typography, spacing } from '../../theme';
+import { colors, typography } from '../../theme';
 import { paymentApi, unwrapApiResponse, walletApi } from '../../api';
 import { useAppSelector } from '../../redux/hooks';
 import { useNavigation } from '@react-navigation/native';
+import { useResponsive } from '../../hooks/useResponsive';
+import { ScreenContainer } from '../../components/common/ScreenContainer';
 
 export const WalletScreen = () => {
   const user = useAppSelector((s) => s.auth.user);
   const navigation = useNavigation<any>();
+  const { fs, sp } = useResponsive();
   const [balance, setBalance] = useState<any>(null);
   const [packages, setPackages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,8 +58,146 @@ export const WalletScreen = () => {
     }
   };
 
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: { flex: 1 },
+        heroCard: {
+          backgroundColor: colors.surface,
+          borderRadius: sp(24),
+          padding: sp(24),
+          borderWidth: 1,
+          borderColor: colors.border,
+          marginBottom: sp(16),
+        },
+        heroTopRow: {
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: sp(8),
+        },
+        heroEyebrow: {
+          color: colors.primary,
+          fontSize: fs(12),
+          fontWeight: '700',
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+        },
+        heroTitle: {
+          color: colors.textPrimary,
+          fontSize: fs(20),
+          fontWeight: '800',
+          marginTop: sp(2),
+        },
+        heroBadge: {
+          backgroundColor: 'rgba(255,47,110,0.16)',
+          paddingHorizontal: sp(8),
+          paddingVertical: sp(6),
+          borderRadius: 999,
+        },
+        heroBadgeText: { color: colors.primary, fontWeight: '700', fontSize: fs(12) },
+        balanceLabel: {
+          ...typography.bodySmall,
+          fontSize: fs(14),
+          color: colors.textSecondary,
+          marginBottom: sp(4),
+        },
+        balanceValue: {
+          fontSize: fs(44),
+          fontWeight: '800',
+          color: colors.accent,
+          marginTop: sp(4),
+        },
+        fiat: { ...typography.body, fontSize: fs(16), color: colors.textSecondary, marginTop: sp(4) },
+        helperText: {
+          ...typography.caption,
+          fontSize: fs(12),
+          color: colors.textSecondary,
+          marginTop: sp(4),
+        },
+        loader: { marginVertical: sp(16) },
+        statRow: { flexDirection: 'row', marginTop: sp(16), gap: sp(10), flexWrap: 'wrap' },
+        statCard: {
+          flex: 1,
+          minWidth: sp(120),
+          backgroundColor: 'rgba(255,47,110,0.10)',
+          borderRadius: sp(16),
+          padding: sp(16),
+        },
+        statCardAlt: {
+          flex: 1,
+          minWidth: sp(120),
+          backgroundColor: 'rgba(255,255,255,0.04)',
+          borderRadius: sp(16),
+          padding: sp(16),
+        },
+        statLabel: { color: colors.textSecondary, fontSize: fs(12) },
+        statValue: {
+          color: colors.textPrimary,
+          fontSize: fs(18),
+          fontWeight: '700',
+          marginTop: sp(4),
+        },
+        actionRow: {
+          marginTop: sp(16),
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: sp(10),
+          flexWrap: 'wrap',
+        },
+        withdrawBtn: {
+          paddingHorizontal: sp(16),
+          height: sp(44),
+          backgroundColor: '#2a2530',
+          borderRadius: 999,
+          minWidth: sp(140),
+          flex: 1,
+        },
+        buyScreenBtn: {
+          paddingHorizontal: sp(16),
+          height: sp(44),
+          backgroundColor: colors.primary,
+          borderRadius: 999,
+          minWidth: sp(140),
+          flex: 1,
+        },
+        infoCard: {
+          backgroundColor: colors.surface,
+          borderRadius: sp(20),
+          padding: sp(16),
+          borderWidth: 1,
+          borderColor: colors.border,
+          flexDirection: 'row',
+          alignItems: 'center',
+        },
+        infoIconBox: {
+          width: sp(44),
+          height: sp(44),
+          borderRadius: sp(22),
+          backgroundColor: 'rgba(255,47,110,0.12)',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginRight: sp(8),
+        },
+        infoIcon: { fontSize: fs(18) },
+        infoTextBox: { flex: 1 },
+        infoTitle: {
+          color: colors.textPrimary,
+          fontWeight: '700',
+          fontSize: fs(15),
+          marginBottom: sp(2),
+        },
+        infoText: {
+          color: colors.textSecondary,
+          fontSize: fs(13),
+          lineHeight: fs(18),
+        },
+      }),
+    [fs, sp]
+  );
+
   return (
-    <View style={styles.container}>
+    <ScreenContainer style={styles.container}>
       <View style={styles.heroCard}>
         <View style={styles.heroTopRow}>
           <View>
@@ -92,7 +232,7 @@ export const WalletScreen = () => {
               </View>
             </View>
             {balance?.availableEarnings != null && balance.availableEarnings > 0 ? (
-              <View style={[styles.statRow, { marginTop: spacing.sm }]}> 
+              <View style={[styles.statRow, { marginTop: sp(8) }]}>
                 <View style={[styles.statCardAlt, { flex: 1 }]}> 
                   <Text style={styles.statLabel}>Payout earnings</Text>
                   <Text style={styles.statValue}>₹{balance.availableEarnings.toLocaleString()}</Text>
@@ -118,101 +258,6 @@ export const WalletScreen = () => {
           <Text style={styles.infoText}>Top up anytime to unlock exclusive content, support creators, and enjoy a smoother live experience.</Text>
         </View>
       </View>
-    </View>
+    </ScreenContainer>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
-  heroCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: spacing.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
-  },
-  heroTopRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: spacing.sm,
-  },
-  heroEyebrow: { color: colors.primary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
-  heroTitle: { color: colors.textPrimary, fontSize: 20, fontWeight: '800', marginTop: 2 },
-  heroBadge: {
-    backgroundColor: 'rgba(255,47,110,0.16)',
-    paddingHorizontal: spacing.sm,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-  heroBadgeText: { color: colors.primary, fontWeight: '700' },
-  balanceLabel: { ...typography.bodySmall, color: colors.textSecondary, marginBottom: spacing.xs },
-  balanceValue: { fontSize: 44, fontWeight: '800', color: colors.accent, marginTop: spacing.xs },
-  fiat: { ...typography.body, color: colors.textSecondary, marginTop: 4 },
-  helperText: { ...typography.caption, color: colors.textSecondary, marginTop: spacing.xs },
-  loader: { marginVertical: spacing.md },
-  statRow: {
-    flexDirection: 'row',
-    marginTop: spacing.md,
-    gap: 10,
-  },
-  statCard: {
-    flex: 1,
-    backgroundColor: 'rgba(255,47,110,0.10)',
-    borderRadius: 16,
-    padding: spacing.md,
-  },
-  statCardAlt: {
-    flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 16,
-    padding: spacing.md,
-  },
-  statLabel: { color: colors.textSecondary, fontSize: 12 },
-  statValue: { color: colors.textPrimary, fontSize: 18, fontWeight: '700', marginTop: 4 },
-  actionRow: {
-    display: 'flex',
-    marginTop: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    // flexWrap: 'wrap',
-  },
-  withdrawBtn: {
-    paddingHorizontal: spacing.md,
-    height: 44,
-    backgroundColor: '#2a2530',
-    borderRadius: 999,
-    minWidth: 140,
-  },
-  buyScreenBtn: {
-    paddingHorizontal: spacing.md,
-    height: 44,
-    backgroundColor: colors.primary,
-    borderRadius: 999,
-    minWidth: 140,
-  },
-  infoCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  infoIconBox: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: 'rgba(255,47,110,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  infoIcon: { fontSize: 18 },
-  infoTextBox: { flex: 1 },
-  infoTitle: { color: colors.textPrimary, fontWeight: '700', marginBottom: 2 },
-  infoText: { color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
-});

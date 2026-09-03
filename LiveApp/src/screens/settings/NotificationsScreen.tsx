@@ -12,7 +12,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, typography, spacing } from '../../theme';
-import { notificationApi } from '../../api';
+import { notificationApi, unwrapApiResponse } from '../../api';
 import { Button } from '../../components/common/Button';
 import { HomeStackParamList } from '../../navigation/HomeStack';
 
@@ -106,8 +106,13 @@ export const NotificationsScreen = ({ navigation }: Props) => {
 
     try {
       const res = await notificationApi.list(pageNum);
-      const nextItems = (res.data || []) as NotificationItem[];
-      const meta = res.meta || {};
+      const payload = unwrapApiResponse<
+        NotificationItem[] | { data?: NotificationItem[]; meta?: { totalPages?: number } }
+      >(res);
+      const nextItems = (
+        Array.isArray(payload) ? payload : payload?.data || []
+      ) as NotificationItem[];
+      const meta = Array.isArray(payload) ? {} : payload?.meta || {};
       const totalPages = meta.totalPages ?? 1;
 
       setItems((prev) => (append ? [...prev, ...nextItems] : nextItems));

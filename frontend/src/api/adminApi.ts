@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.REACT_APP_BACKEND_URL ;
+const API_BASE_URL = process.env.REACT_APP_BACKEND_URL;
 
 export type ApiRecord = Record<string, unknown>;
 
@@ -9,6 +9,23 @@ const readPayload = (payload: unknown): unknown => {
     return (payload as ApiRecord).data;
   }
   return payload;
+};
+
+const getApiErrorMessage = (payload: unknown, fallback = "Request failed."): string => {
+  if (!payload || typeof payload !== "object") return fallback;
+
+  const record = payload as ApiRecord;
+  const nestedError = record.error;
+  if (nestedError && typeof nestedError === "object" && "message" in nestedError) {
+    const message = (nestedError as ApiRecord).message;
+    if (typeof message === "string" && message.trim()) return message;
+  }
+
+  if (typeof record.message === "string" && record.message.trim()) {
+    return record.message;
+  }
+
+  return fallback;
 };
 
 export const getAdminToken = () => localStorage.getItem("adminToken") || "";
@@ -23,10 +40,7 @@ export async function adminRequest<T = unknown>(path: string, options: RequestIn
   const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
   const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    const message = payload && typeof payload === "object" && "message" in payload
-      ? String((payload as ApiRecord).message)
-      : `Request failed (${response.status})`;
-    throw new Error(message);
+    throw new Error(getApiErrorMessage(payload));
   }
   return readPayload(payload) as T;
 }
@@ -39,7 +53,7 @@ export async function adminRequestWithMeta<T = unknown>(path: string, options: R
   if (token) headers.set("Authorization", `Bearer ${token}`);
   const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers });
   const payload = await response.json().catch(() => null) as ApiRecord | null;
-  if (!response.ok) throw new Error(payload && payload.message ? String(payload.message) : `Request failed (${response.status})`);
+  if (!response.ok) throw new Error(getApiErrorMessage(payload));
   const meta = payload && payload.meta && typeof payload.meta === "object" ? payload.meta as ApiRecord : undefined;
   return { data: (payload?.data ?? payload) as T, meta, message: payload?.message ? String(payload.message) : undefined };
 }

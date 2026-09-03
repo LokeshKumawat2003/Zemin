@@ -9,12 +9,12 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
-  useWindowDimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { spacing } from '../../theme';
+import { useResponsive } from '../../hooks/useResponsive';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { bootstrapAuth } from '../../redux/slices/authSlice';
 import { creatorApi, userApi, walletApi } from '../../api';
@@ -69,7 +69,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
   const user = useAppSelector((s) => s.auth.user);
   const { toggle: toggleSidebar } = useSidebar();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, sp, horizontalPadding, contentMaxWidth } = useResponsive();
 
   const [activeTab, setActiveTab] = useState<ContentTab>('posts');
   const [posts, setPosts] = useState<ProfilePost[]>([]);
@@ -83,12 +83,17 @@ export const ProfileScreen = ({ navigation }: Props) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
+  const gridCols = width >= 768 ? 4 : GRID_COLS;
   const tileSize = useMemo(() => {
-    const horizontalPad = spacing.md * 2;
-    return (width - horizontalPad - GRID_GAP * (GRID_COLS - 1)) / GRID_COLS;
-  }, [width]);
+    const usableWidth = Math.min(width, contentMaxWidth);
+    const horizontalPad = horizontalPadding * 2;
+    return (usableWidth - horizontalPad - sp(GRID_GAP) * (gridCols - 1)) / gridCols;
+  }, [width, contentMaxWidth, horizontalPadding, sp, gridCols]);
 
-  const coverHeight = useMemo(() => Math.min(260, Math.max(180, width * 0.48)), [width]);
+  const coverHeight = useMemo(
+    () => Math.min(sp(260), Math.max(sp(180), width * 0.48)),
+    [width, sp]
+  );
 
   const loadProfile = useCallback(async () => {
     if (!user?.username) {
@@ -353,8 +358,8 @@ export const ProfileScreen = ({ navigation }: Props) => {
                   {
                     width: tileSize,
                     height: tileSize * 1.25,
-                    marginRight: (index + 1) % GRID_COLS === 0 ? 0 : GRID_GAP,
-                    marginBottom: GRID_GAP,
+                    marginRight: (index + 1) % gridCols === 0 ? 0 : sp(GRID_GAP),
+                    marginBottom: sp(GRID_GAP),
                   },
                 ]}
                 onPress={() => openPost(item.id)}

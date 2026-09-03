@@ -12,7 +12,7 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../../components/common/Button';
 import { colors, typography, spacing } from '../../theme';
-import { feedApi } from '../../api';
+import { feedApi, unwrapApiResponse } from '../../api';
 import { HomeStackParamList } from '../../navigation/HomeStack';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'PostDetail'>;
@@ -65,8 +65,8 @@ export const PostDetailScreen = ({ route, navigation }: Props) => {
   const unlockPost = async () => {
     setUnlocking(true);
     try {
-      const res = await feedApi.purchasePpv(postId);
-      if (res?.data?.purchased || res?.purchased) {
+      const res = unwrapApiResponse<any>(await feedApi.purchasePpv(postId));
+      if (res?.purchased) {
         Alert.alert('Unlocked!', 'You can now view this post.');
         await load();
       } else {

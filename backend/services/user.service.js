@@ -14,6 +14,12 @@ class UserService {
 
     if (data.displayName !== undefined) user.displayName = data.displayName;
     if (data.bio !== undefined) user.bio = data.bio;
+    if (data.avatar !== undefined) {
+      if (typeof data.avatar !== 'string' || data.avatar.length > 2048) {
+        throw new AppError('VALIDATION_ERROR', 400, 'Invalid avatar URL');
+      }
+      user.avatar = data.avatar;
+    }
     if (data.socialLinks) user.socialLinks = { ...user.socialLinks, ...data.socialLinks };
     await user.save();
 

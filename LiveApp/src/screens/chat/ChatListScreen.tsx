@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { chatApi } from '../../api';
 import { useAppSelector } from '../../redux/hooks';
 import { ChatStackParamList } from '../../navigation/types';
 import { socketManager } from '../../socket/socketClient';
+import { useResponsive } from '../../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<ChatStackParamList, 'ChatList'>;
 
@@ -73,6 +74,8 @@ const formatTimestamp = (iso?: string) => {
 
 export const ChatListScreen = ({ navigation }: Props) => {
   const user = useAppSelector((s) => s.auth.user);
+  const { fs, sp, contentMaxWidth } = useResponsive();
+  const styles = useMemo(() => createStyles(fs, sp), [fs, sp]);
 
   const [onlineFriends, setOnlineFriends] = useState<OnlineFriend[]>([]);
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
@@ -243,6 +246,7 @@ export const ChatListScreen = ({ navigation }: Props) => {
 
   return (
     <View style={styles.container}>
+      <View style={[styles.contentWrap, { maxWidth: contentMaxWidth }]}>
       {/* Header */}
       <View style={styles.topBar}>
         <Text style={styles.headerTitle}>Messages</Text>
@@ -304,125 +308,121 @@ export const ChatListScreen = ({ navigation }: Props) => {
         />
       )}
 
+      </View>
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+const createStyles = (fs: (n: number) => number, sp: (n: number) => number) =>
+  StyleSheet.create({
+  container: { flex: 1, backgroundColor: colors.background, alignItems: 'center' },
+  contentWrap: { flex: 1, width: '100%' },
 
-  // Header
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: spacing.lg,
-    paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
+    paddingTop: sp(24),
+    paddingHorizontal: sp(16),
+    paddingBottom: sp(8),
   },
-  headerTitle: { fontSize: 26, fontWeight: '800', color: colors.text },
+  headerTitle: { fontSize: fs(26), fontWeight: '800', color: colors.text },
 
-  // Search
-
-  // Online friends row
-  onlineRow: { paddingHorizontal: spacing.md, gap: 16, paddingBottom: spacing.md },
-  friendItem: { alignItems: 'center', width: 64 },
+  onlineRow: { paddingHorizontal: sp(16), gap: sp(16), paddingBottom: sp(16) },
+  friendItem: { alignItems: 'center', width: sp(64) },
   newChatCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: sp(60),
+    height: sp(60),
+    borderRadius: sp(30),
     borderWidth: 2,
     borderColor: colors.border,
     borderStyle: 'dashed',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: sp(6),
   },
-  newChatIcon: { color: colors.textSecondary, fontSize: 22 },
+  newChatIcon: { color: colors.textSecondary, fontSize: fs(22) },
   newChatBadge: {
     position: 'absolute',
     bottom: -2,
     right: -2,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: sp(20),
+    height: sp(20),
+    borderRadius: sp(10),
     backgroundColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  newChatBadgeText: { color: '#fff', fontSize: 12, fontWeight: '700', marginTop: -1 },
+  newChatBadgeText: { color: '#fff', fontSize: fs(12), fontWeight: '700', marginTop: -1 },
   friendAvatarWrap: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: sp(60),
+    height: sp(60),
+    borderRadius: sp(30),
     borderWidth: 2,
     borderColor: colors.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: sp(6),
   },
-  friendAvatar: { width: 54, height: 54, borderRadius: 27 },
+  friendAvatar: { width: sp(54), height: sp(54), borderRadius: sp(27) },
   friendAvatarPlaceholder: { backgroundColor: colors.surfaceAlt },
   onlineDot: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: sp(14),
+    height: sp(14),
+    borderRadius: sp(7),
     backgroundColor: colors.online,
     borderWidth: 2,
     borderColor: colors.background,
   },
-  friendLabel: { color: colors.text, fontSize: 12, textAlign: 'center' },
+  friendLabel: { color: colors.text, fontSize: fs(12), textAlign: 'center' },
 
-  // Conversation rows
-  list: { paddingBottom: 100 },
+  list: { paddingBottom: sp(100) },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
-    gap: 12,
+    paddingHorizontal: sp(16),
+    paddingVertical: sp(16),
+    gap: sp(12),
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
-  avatarWrap: { width: 56, height: 56 },
-  avatar: { width: 56, height: 56, borderRadius: 28 },
+  avatarWrap: { width: sp(56), height: sp(56) },
+  avatar: { width: sp(56), height: sp(56), borderRadius: sp(28) },
   avatarPlaceholder: { backgroundColor: colors.surfaceAlt },
   rowOnlineDot: {
     position: 'absolute',
     bottom: 0,
     right: 0,
-    width: 14,
-    height: 14,
-    borderRadius: 7,
+    width: sp(14),
+    height: sp(14),
+    borderRadius: sp(7),
     backgroundColor: colors.online,
     borderWidth: 2,
     borderColor: colors.background,
   },
   rowContent: { flex: 1 },
   rowTopLine: { flexDirection: 'row', justifyContent: 'space-between' },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  name: { color: colors.text, fontSize: 15, fontWeight: '700' },
-  verifiedIcon: { fontSize: 11 },
-  preview: { color: colors.textSecondary, fontSize: 13, marginTop: 3 },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: sp(4) },
+  name: { color: colors.text, fontSize: fs(15), fontWeight: '700' },
+  verifiedIcon: { fontSize: fs(11) },
+  preview: { color: colors.textSecondary, fontSize: fs(13), marginTop: sp(3) },
   previewMedia: { color: colors.primary },
-  rowRight: { alignItems: 'flex-end', gap: 8 },
-  timestamp: { color: colors.textSecondary, fontSize: 12 },
+  rowRight: { alignItems: 'flex-end', gap: sp(8) },
+  timestamp: { color: colors.textSecondary, fontSize: fs(12) },
   badge: {
     backgroundColor: colors.primary,
-    borderRadius: 10,
-    minWidth: 20,
-    height: 20,
+    borderRadius: sp(10),
+    minWidth: sp(20),
+    height: sp(20),
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: sp(6),
   },
-  badgeText: { color: '#fff', fontSize: 11, fontWeight: '700' },
-  pinIcon: { fontSize: 14 },
+  badgeText: { color: '#fff', fontSize: fs(11), fontWeight: '700' },
+  pinIcon: { fontSize: fs(14) },
 
-  empty: { ...typography.body, color: colors.textSecondary, textAlign: 'center', marginTop: 40 },
-
-  // Bottom nav
+  empty: { ...typography.body, fontSize: fs(16), color: colors.textSecondary, textAlign: 'center', marginTop: sp(40) },
 });

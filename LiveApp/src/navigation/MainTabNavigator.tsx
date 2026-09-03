@@ -10,12 +10,14 @@ import { LiveStack } from './LiveStack';
 import { DiscoverStack } from './DiscoverStack';
 import { colors } from '../theme';
 import { MainTabParamList } from './types';
+import { useResponsive } from '../hooks/useResponsive';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-const TabIcon = ({ label, focused }: { label: string; focused: boolean }) => (
-  <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>{label}</Text>
-);
+const TabIcon = ({ label, focused }: { label: string; focused: boolean }) => {
+  const { fs } = useResponsive();
+  return <Text style={{ fontSize: fs(20), opacity: focused ? 1 : 0.5 }}>{label}</Text>;
+};
 
 const shouldShowTabBar = (route: any) => {
   const nestedRouteName =
@@ -34,14 +36,15 @@ const shouldShowTabBar = (route: any) => {
 
 export const MainTabNavigator = () => {
   const insets = useSafeAreaInsets();
-  const bottomPadding = Math.max(insets.bottom, 8);
-  const tabBarHeight = 56 + bottomPadding;
+  const { fs, sp } = useResponsive();
+  const bottomPadding = Math.max(insets.bottom, sp(8));
+  const tabBarHeight = sp(56) + bottomPadding;
 
   const tabBarBaseStyle: ViewStyle = {
     backgroundColor: colors.surface,
     borderTopColor: colors.border,
     borderTopWidth: 1,
-    paddingTop: 8,
+    paddingTop: sp(8),
     paddingBottom: bottomPadding,
     height: tabBarHeight,
   };
@@ -61,6 +64,7 @@ export const MainTabNavigator = () => {
         tabBarLabelStyle: {
           marginBottom: 0,
           paddingBottom: 0,
+          fontSize: fs(11),
         },
       })}
     >

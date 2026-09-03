@@ -32,6 +32,11 @@ module.exports = {
   },
   allowedOrigins: [...new Set([...defaultAllowedOrigins, ...configuredOrigins])],
   uploadDir: process.env.UPLOAD_DIR || './uploads',
+  cloudinary: {
+    cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+    apiKey: process.env.CLOUDINARY_API_KEY,
+    apiSecret: process.env.CLOUDINARY_API_SECRET,
+  },
   notifications: {
     pushEnabled: process.env.NOTIFICATION_PUSH_ENABLED !== 'false',
   },

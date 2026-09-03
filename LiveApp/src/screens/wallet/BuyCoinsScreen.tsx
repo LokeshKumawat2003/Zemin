@@ -1,19 +1,112 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert, ActivityIndicator, TouchableOpacity } from 'react-native';
 import RazorpayCheckout from 'react-native-razorpay';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../../components/common/Button';
-import { colors, typography, spacing } from '../../theme';
+import { colors, typography } from '../../theme';
 import { paymentApi, unwrapApiResponse, walletApi } from '../../api';
 import { useAppSelector } from '../../redux/hooks';
 import { ProfileStackParamList } from '../../navigation/types';
+import { useResponsive } from '../../hooks/useResponsive';
+import { ScreenContainer } from '../../components/common/ScreenContainer';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'BuyCoins'>;
 
 export const BuyCoinsScreen = ({ navigation }: Props) => {
   const user = useAppSelector((s) => s.auth.user);
+  const { fs, sp } = useResponsive();
   const [packages, setPackages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const styles = useMemo(
+    () =>
+      StyleSheet.create({
+        container: { flex: 1 },
+        headerCard: {
+          backgroundColor: colors.surface,
+          borderRadius: sp(24),
+          padding: sp(16),
+          borderWidth: 1,
+          borderColor: colors.border,
+          marginBottom: sp(16),
+          flexDirection: 'row',
+          alignItems: 'center',
+        },
+        headerTextBlock: { flex: 1 },
+        eyebrow: {
+          color: colors.primary,
+          fontSize: fs(12),
+          fontWeight: '700',
+          textTransform: 'uppercase',
+          letterSpacing: 1,
+        },
+        title: { color: colors.textPrimary, fontSize: fs(24), fontWeight: '800', marginTop: sp(2) },
+        subtitle: { color: colors.textSecondary, marginTop: sp(4), fontSize: fs(13) },
+        summaryCard: {
+          backgroundColor: colors.surface,
+          borderRadius: sp(20),
+          padding: sp(16),
+          borderWidth: 1,
+          borderColor: colors.border,
+          marginBottom: sp(16),
+        },
+        summaryLabel: { color: colors.textSecondary, fontSize: fs(12) },
+        summaryValue: { color: colors.accent, fontSize: fs(34), fontWeight: '800', marginTop: sp(4) },
+        summaryHint: { color: colors.textSecondary, marginTop: sp(2), fontSize: fs(13) },
+        noteBox: {
+          marginTop: sp(8),
+          padding: sp(8),
+          borderRadius: sp(12),
+          backgroundColor: 'rgba(255,255,255,0.03)',
+        },
+        noteText: { color: colors.textSecondary, fontSize: fs(12), lineHeight: fs(18) },
+        loader: { marginVertical: sp(24) },
+        listContent: { paddingBottom: sp(24) },
+        packageCard: {
+          backgroundColor: 'rgba(255,255,255,0.03)',
+          borderRadius: sp(18),
+          padding: sp(16),
+          marginBottom: sp(8),
+          borderWidth: 1,
+          borderColor: colors.border,
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: sp(8),
+        },
+        packageCardPopular: {
+          borderColor: colors.primary,
+          backgroundColor: 'rgba(255,47,110,0.1)',
+        },
+        packageInfo: { flex: 1, minWidth: sp(160) },
+        packageTopRow: { flexDirection: 'row', alignItems: 'center', gap: sp(8), flexWrap: 'wrap' },
+        pkgCoins: { color: colors.textPrimary, fontSize: fs(16), fontWeight: '700' },
+        popularBadge: {
+          backgroundColor: colors.primary,
+          paddingHorizontal: sp(8),
+          paddingVertical: sp(3),
+          borderRadius: 999,
+        },
+        popularBadgeText: { color: '#fff', fontSize: fs(10), fontWeight: '700' },
+        bonus: { color: colors.success, marginTop: sp(4), fontSize: fs(12) },
+        pkgValue: { color: colors.textSecondary, marginTop: sp(4), fontSize: fs(12) },
+        pkgPrice: { color: colors.textSecondary, marginTop: sp(4), fontSize: fs(13) },
+        buyBtn: {
+          paddingHorizontal: sp(16),
+          height: sp(40),
+          minWidth: sp(82),
+          backgroundColor: colors.primary,
+        },
+        emptyState: {
+          color: colors.textSecondary,
+          textAlign: 'center',
+          marginTop: sp(16),
+          fontSize: fs(14),
+        },
+      }),
+    [fs, sp]
+  );
 
   const loadPackages = useCallback(async () => {
     try {
@@ -86,7 +179,7 @@ export const BuyCoinsScreen = ({ navigation }: Props) => {
   };
 
   return (
-    <View style={styles.container}>
+    <ScreenContainer style={styles.container}>
       <View style={styles.headerCard}>
         {/* <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Text style={styles.backBtnText}>←</Text>
@@ -131,84 +224,6 @@ export const BuyCoinsScreen = ({ navigation }: Props) => {
           )}
         />
       )}
-    </View>
+    </ScreenContainer>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background, padding: spacing.md },
-  headerCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(255,47,110,0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: spacing.sm,
-  },
-  backBtnText: { color: colors.primary, fontSize: 20, fontWeight: '700' },
-  headerTextBlock: { flex: 1 },
-  eyebrow: { color: colors.primary, fontSize: 12, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
-  title: { color: colors.textPrimary, fontSize: 24, fontWeight: '800', marginTop: 2 },
-  subtitle: { color: colors.textSecondary, marginTop: 4, fontSize: 13 },
-  summaryCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 20,
-    padding: spacing.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    marginBottom: spacing.md,
-  },
-  summaryLabel: { color: colors.textSecondary, fontSize: 12 },
-  summaryValue: { color: colors.accent, fontSize: 34, fontWeight: '800', marginTop: 4 },
-  summaryHint: { color: colors.textSecondary, marginTop: 2 },
-  noteBox: {
-    marginTop: spacing.sm,
-    padding: spacing.sm,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.03)',
-  },
-  noteText: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
-  loader: { marginVertical: spacing.lg },
-  listContent: { paddingBottom: spacing.lg },
-  packageCard: {
-    backgroundColor: 'rgba(255,255,255,0.03)',
-    borderRadius: 18,
-    padding: spacing.md,
-    marginBottom: spacing.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  packageCardPopular: {
-    borderColor: colors.primary,
-    backgroundColor: 'rgba(255,47,110,0.1)',
-  },
-  packageInfo: { flex: 1 },
-  packageTopRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  pkgCoins: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
-  popularBadge: {
-    backgroundColor: colors.primary,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-  },
-  popularBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  bonus: { color: colors.success, marginTop: 4, fontSize: 12 },
-  pkgValue: { color: colors.textSecondary, marginTop: 4, fontSize: 12 },
-  pkgPrice: { color: colors.textSecondary, marginTop: 4, fontSize: 13 },
-  buyBtn: { paddingHorizontal: spacing.md, height: 40, minWidth: 82, backgroundColor: colors.primary },
-  emptyState: { color: colors.textSecondary, textAlign: 'center', marginTop: spacing.md },
-});

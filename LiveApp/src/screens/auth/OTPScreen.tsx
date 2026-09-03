@@ -7,11 +7,12 @@ import { colors, typography, spacing } from '../../theme';
 import { useAppDispatch } from '../../redux/hooks';
 import { verifyOtp } from '../../redux/slices/authSlice';
 import { AuthStackParamList } from '../../navigation/types';
+import { uploadApi, userApi } from '../../api';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'OTP'>;
 
 export const OTPScreen = ({ route }: Props) => {
-  const { userId, devOtp } = route.params;
+  const { userId, devOtp, avatarUri } = route.params;
   const dispatch = useAppDispatch();
   const [otp, setOtp] = useState(devOtp || '');
   const [loading, setLoading] = useState(false);
@@ -24,6 +25,13 @@ export const OTPScreen = ({ route }: Props) => {
     setLoading(true);
     try {
       await dispatch(verifyOtp({ userId, otp })).unwrap();
+      if (avatarUri) {
+        const formData = new FormData();
+        formData.append('file', { uri: avatarUri, type: 'image/jpeg', name: 'avatar.jpg' } as any);
+        formData.append('folder', 'avatars');
+        const upload = await uploadApi.uploadMedia(formData);
+        await userApi.updateProfile({ avatar: upload.data?.url });
+      }
     } catch (e: any) {
       Alert.alert('Verification Failed', e?.error?.message || 'Invalid code');
     } finally {

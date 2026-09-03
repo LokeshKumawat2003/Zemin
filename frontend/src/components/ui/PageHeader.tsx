@@ -19,7 +19,7 @@ export const PageHeader = ({ title, description, action }: PageHeaderProps) => (
     gap={3}
   >
     <Box>
-      <Heading size="lg">{title}</Heading>
+      <Heading size={{ base: "md", md: "lg" }}>{title}</Heading>
       {description && (
         <Text color="gray.500" mt={1}>
           {description}

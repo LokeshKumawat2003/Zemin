@@ -1,7 +1,8 @@
 const path = require('path');
 const fs = require('fs');
 const multer = require('multer');
-const { uploadDir } = require('../config/env');
+const cloudinary = require('cloudinary').v2;
+const { uploadDir, cloudinary: cloudinaryConfig } = require('../config/env');
 const { success } = require('../utils/response.util');
 const AppError = require('../utils/AppError');
 
@@ -17,6 +18,18 @@ const storage = multer.diskStorage({
     cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}${ext}`);
   },
 });
+
+const cloudinaryEnabled = Boolean(
+  cloudinaryConfig.cloudName && cloudinaryConfig.apiKey && cloudinaryConfig.apiSecret
+);
+
+if (cloudinaryEnabled) {
+  cloudinary.config({
+    cloud_name: cloudinaryConfig.cloudName,
+    api_key: cloudinaryConfig.apiKey,
+    api_secret: cloudinaryConfig.apiSecret,
+  });
+}
 
 const upload = multer({
   storage,
@@ -35,16 +48,32 @@ exports.uploadMedia = (req, res, next) => {
     if (err) return next(err);
     if (!req.file) return next(new AppError('VALIDATION_ERROR', 400, 'File required'));
 
-    const folder = req.body.folder || 'posts';
-    const baseUrl = `${req.protocol}://${req.get('host')}/uploads/${folder}`;
-    const url = `${baseUrl}/${req.file.filename}`;
+    const folder = req.body.folder === 'avatars' ? 'avatars' : 'posts';
+    const type = req.body.type || (req.file.mimetype.startsWith('video') ? 'video' : 'image');
 
-    success(res, {
-      url,
-      type: req.body.type || (req.file.mimetype.startsWith('video') ? 'video' : 'image'),
-      size: req.file.size,
-      filename: req.file.filename,
-    }, 'Upload successful', 201);
+    if (!cloudinaryEnabled) {
+      const baseUrl = `${req.protocol}://${req.get('host')}/uploads/${folder}`;
+      return success(res, {
+        url: `${baseUrl}/${req.file.filename}`,
+        type,
+        size: req.file.size,
+        filename: req.file.filename,
+      }, 'Upload successful', 201);
+    }
+
+    const uploadStream = cloudinary.uploader.upload_stream(
+      { folder: `zemin/${folder}`, resource_type: 'auto' },
+      (uploadError, result) => {
+        if (uploadError) return next(uploadError);
+        return success(res, {
+          url: result.secure_url,
+          type,
+          size: req.file.size,
+          filename: result.public_id,
+        }, 'Upload successful', 201);
+      }
+    );
+    uploadStream.end(fs.readFileSync(req.file.path));
   });
 };
 

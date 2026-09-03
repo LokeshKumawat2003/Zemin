@@ -10,7 +10,6 @@ import {
   Image,
   TextInput,
   Modal,
-  Dimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -24,6 +23,7 @@ import { GiftEntryPicker } from '../../components/live/GiftEntryPicker';
 import { ScheduleDateTimePicker } from '../../components/live/ScheduleDateTimePicker';
 import { GiftItem, getGiftEmoji } from '../../components/live/LiveGiftEffects';
 import { LiveStreamerCard, LiveStreamerCardData } from '../../components/live/LiveStreamerCard';
+import { useResponsive } from '../../hooks/useResponsive';
 
 const colors = {
   ...baseColors,
@@ -66,12 +66,12 @@ const formatScheduledTime = (iso?: string) => {
 };
 
 const CARD_GAP = spacing.sm ?? 8;
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const VIP_CARD_WIDTH = (SCREEN_WIDTH - spacing.md * 2 - CARD_GAP) / 2;
 
 export const LiveHomeScreen = ({ navigation }: Props) => {
   const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
+  const { cardWidth } = useResponsive();
+  const vipCardWidth = cardWidth;
   const [liveRooms, setLiveRooms] = useState<any[]>([]);
   const [vipRooms, setVipRooms] = useState<any[]>([]);
   const [streamMode, setStreamMode] = useState<StreamMode>('public');
@@ -356,7 +356,7 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
     const cardData = mapVipRoom(item);
 
     return (
-      <View key={String(item.id)} style={{ width: VIP_CARD_WIDTH, marginBottom: CARD_GAP }}>
+      <View key={String(item.id)} style={{ width: vipCardWidth, marginBottom: CARD_GAP }}>
         <LiveStreamerCard
           item={cardData}
           variant="vip"
