@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import Icon from '@react-native-vector-icons/material-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -69,7 +70,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
   const user = useAppSelector((s) => s.auth.user);
   const { toggle: toggleSidebar } = useSidebar();
   const insets = useSafeAreaInsets();
-  const { width, sp, horizontalPadding, contentMaxWidth } = useResponsive();
+  const { width, fs, sp, horizontalPadding, contentMaxWidth } = useResponsive();
 
   const [activeTab, setActiveTab] = useState<ContentTab>('posts');
   const [posts, setPosts] = useState<ProfilePost[]>([]);
@@ -84,6 +85,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
   const [refreshing, setRefreshing] = useState(false);
 
   const gridCols = width >= 768 ? 4 : GRID_COLS;
+  const avatarSize = width < 360 ? sp(82) : sp(96);
   const tileSize = useMemo(() => {
     const usableWidth = Math.min(width, contentMaxWidth);
     const horizontalPad = horizontalPadding * 2;
@@ -178,7 +180,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
     <View style={styles.container}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={{ paddingBottom: insets.bottom + 96 }}
+        contentContainerStyle={{ paddingBottom: insets.bottom + 160 }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.primary} />
         }
@@ -197,7 +199,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
             onPress={toggleSidebar}
             activeOpacity={0.8}
           >
-            <Text style={styles.menuIcon}>☰</Text>
+            <Icon name="menu" size={fs(26)} color="#fff" />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -205,7 +207,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
             onPress={() => navigation.navigate('Settings')}
             activeOpacity={0.8}
           >
-            <Text style={styles.editProfileIcon}>✎</Text>
+            <Icon name="edit" size={fs(15)} color="#fff" />
             <Text style={styles.editProfileText}>Edit</Text>
           </TouchableOpacity>
         </View>
@@ -214,9 +216,9 @@ export const ProfileScreen = ({ navigation }: Props) => {
         <View style={styles.headerBlock}>
           <View style={styles.avatarRow}>
             {user?.avatar ? (
-              <Image source={{ uri: user.avatar }} style={styles.avatar} />
+              <Image source={{ uri: user.avatar }} style={[styles.avatar, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]} />
             ) : (
-              <View style={[styles.avatar, styles.avatarPlaceholder]}>
+              <View style={[styles.avatar, styles.avatarPlaceholder, { width: avatarSize, height: avatarSize, borderRadius: avatarSize / 2 }]}>
                 <Text style={styles.avatarText}>
                   {(user?.displayName || user?.username || '?').charAt(0).toUpperCase()}
                 </Text>
@@ -252,7 +254,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
               <Text style={styles.name} numberOfLines={1}>
                 {user?.displayName || user?.username || 'User'}
               </Text>
-              {user?.isVerified && <Text style={styles.verifiedIcon}>✔️</Text>}
+              {user?.isVerified && <Icon name="verified" size={fs(16)} color={colors.primary} />}
               {user?.isCreator && (
                 <View style={styles.creatorBadge}>
                   <Text style={styles.creatorBadgeText}>Creator</Text>
@@ -269,21 +271,21 @@ export const ProfileScreen = ({ navigation }: Props) => {
               style={styles.quickActionBtn}
               onPress={() => navigation.navigate('Wallet')}
             >
-              <Text style={styles.quickActionIcon}>🪙</Text>
+              <Icon name="account-balance-wallet" size={fs(17)} color={colors.primary} />
               <Text style={styles.quickActionText}>Wallet</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickActionBtn}
               onPress={() => navigation.navigate('GiftCatalog')}
             >
-              <Text style={styles.quickActionIcon}>🎁</Text>
+              <Icon name="card-giftcard" size={fs(17)} color={colors.primary} />
               <Text style={styles.quickActionText}>Gifts</Text>
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.quickActionBtn}
               onPress={() => navigation.navigate('Settings')}
             >
-              <Text style={styles.quickActionIcon}>⚙️</Text>
+              <Icon name="settings" size={fs(17)} color={colors.primary} />
               <Text style={styles.quickActionText}>Settings</Text>
             </TouchableOpacity>
             {user?.isCreator && (
@@ -293,7 +295,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
                   navigation.navigate('CreatorProfile', { username: user!.username })
                 }
               >
-                <Text style={styles.quickActionIcon}>👁</Text>
+                <Icon name="visibility" size={fs(17)} color={colors.primary} />
                 <Text style={[styles.quickActionText, styles.quickActionTextPrimary]}>Public</Text>
               </TouchableOpacity>
             )}
@@ -307,7 +309,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
             onPress={() => navigation.navigate('Wallet')}
             activeOpacity={0.85}
           >
-            <Text style={styles.balanceEmoji}>🪙</Text>
+            <Icon name="monetization-on" size={fs(25)} color={colors.gold} style={styles.balanceIcon} />
             <Text style={styles.balanceLabel}>Coins</Text>
             <Text style={styles.balanceValue}>{coinBalance.toLocaleString()}</Text>
           </TouchableOpacity>
@@ -316,7 +318,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
             onPress={() => navigation.navigate('Wallet')}
             activeOpacity={0.85}
           >
-            <Text style={styles.balanceEmoji}>💎</Text>
+            <Icon name="diamond" size={fs(25)} color="#9edcff" style={styles.balanceIcon} />
             <Text style={styles.balanceLabel}>Wallet</Text>
             <Text style={styles.balanceValue}>{walletBalance.toLocaleString()}</Text>
           </TouchableOpacity>
@@ -326,20 +328,24 @@ export const ProfileScreen = ({ navigation }: Props) => {
         {!user?.isCreator && (
           <TouchableOpacity style={styles.creatorCta} onPress={applyCreator} activeOpacity={0.9}>
             <View style={styles.creatorCtaIconWrap}>
-              <Text style={styles.creatorCtaIcon}>⭐</Text>
+              <Icon name="star" size={fs(24)} color={colors.gold} />
             </View>
             <View style={styles.creatorCtaText}>
               <Text style={styles.creatorCtaTitle}>Become a Creator</Text>
               <Text style={styles.creatorCtaSub}>Go live, earn gifts, grow your fans</Text>
             </View>
-            <Text style={styles.creatorCtaArrow}>›</Text>
+            <Icon name="chevron-right" size={fs(24)} color={colors.gold} />
           </TouchableOpacity>
         )}
 
         {/* Content tabs */}
         <View style={styles.tabsRow}>
           {CONTENT_TABS.map((t) => (
-            <TouchableOpacity key={t.key} onPress={() => setActiveTab(t.key)} style={styles.tabBtn}>
+            <TouchableOpacity
+              key={t.key}
+              onPress={() => setActiveTab(t.key)}
+              style={[styles.tabBtn, activeTab === t.key && styles.tabBtnActive]}
+            >
               <Text style={[styles.tab, activeTab === t.key && styles.tabActive]}>{t.label}</Text>
             </TouchableOpacity>
           ))}
@@ -349,7 +355,15 @@ export const ProfileScreen = ({ navigation }: Props) => {
         {loading ? (
           <ActivityIndicator color={colors.primary} style={styles.loader} />
         ) : displayedPosts.length > 0 ? (
-          <View style={[styles.grid, { paddingHorizontal: spacing.md }]}>
+            <View
+              style={[
+                styles.grid,
+                {
+                  width: tileSize * gridCols + sp(GRID_GAP) * (gridCols - 1) + horizontalPadding * 2,
+                  paddingHorizontal: horizontalPadding,
+                },
+              ]}
+            >
             {displayedPosts.map((item, index) => (
               <TouchableOpacity
                 key={item.id}
@@ -370,19 +384,22 @@ export const ProfileScreen = ({ navigation }: Props) => {
                 ) : (
                   <View style={[styles.gridImage, styles.gridPlaceholder]}>
                     <Text style={styles.gridPlaceholderIcon}>
-                      {item.type === 'video' ? '🎬' : '📷'}
+                      <Icon name={item.type === 'video' ? 'videocam' : 'image'} size={fs(30)} color={colors.textSecondary} />
                     </Text>
                   </View>
                 )}
                 <View style={styles.gridOverlay}>
-                  <Text style={styles.gridViewText}>▶ {formatCount(item.viewCount)}</Text>
+                  <View style={styles.gridViewRow}>
+                    <Icon name="play-arrow" size={fs(14)} color="#fff" />
+                    <Text style={styles.gridViewText}>{formatCount(item.viewCount)}</Text>
+                  </View>
                 </View>
               </TouchableOpacity>
             ))}
           </View>
         ) : (
           <View style={styles.emptyWrap}>
-            <Text style={styles.emptyIcon}>📷</Text>
+            <Icon name="photo-library" size={fs(42)} color={colors.textSecondary} style={styles.emptyIcon} />
             <Text style={styles.emptyTitle}>No posts yet</Text>
             <Text style={styles.emptySub}>
               {user?.isCreator
@@ -397,7 +414,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: colors.background },
+  container: { flex: 1, backgroundColor: colors.background ,paddingBottom: spacing.xl},
 
   coverWrap: { width: '100%', position: 'relative' },
   coverImage: { width: '100%', height: '100%', resizeMode: 'cover' },
@@ -530,7 +547,7 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(124, 58, 237, 0.35)',
     backgroundColor: 'rgba(124, 58, 237, 0.08)',
   },
-  balanceEmoji: { fontSize: 22, marginBottom: 6 },
+  balanceIcon: { marginBottom: 6 },
   balanceLabel: { color: colors.textSecondary, fontSize: 12 },
   balanceValue: { color: colors.text, fontSize: 20, fontWeight: '800', marginTop: 2 },
 
@@ -568,14 +585,12 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
     gap: spacing.lg,
   },
-  tabBtn: { paddingBottom: spacing.sm },
+  tabBtn: { flex: 1, alignItems: 'center', paddingBottom: spacing.sm },
+  tabBtnActive: { borderBottomWidth: 2, borderBottomColor: colors.primary },
   tab: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
   tabActive: {
     color: colors.primary,
     fontWeight: '800',
-    borderBottomWidth: 2,
-    borderBottomColor: colors.primary,
-    paddingBottom: spacing.sm - 2,
   },
 
   loader: { marginVertical: 40 },
@@ -606,6 +621,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   gridViewText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  gridViewRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
 
   emptyWrap: {
     alignItems: 'center',

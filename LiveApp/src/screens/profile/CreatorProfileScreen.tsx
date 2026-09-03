@@ -215,8 +215,8 @@ export const CreatorProfileScreen = ({ route, navigation }: Props) => {
           <Text style={styles.statText}>{profile.stats.followingCount ?? 0} following</Text>
         </TouchableOpacity>
         <View style={styles.statWrap}>
-        <Text style={styles.statText}>{profile.stats.postsCount} posts</Text>
-      </View>
+          <Text style={styles.statText}>{profile.stats.postsCount} posts</Text>
+        </View>
       </View>
 
       {!isOwnProfile && (
