@@ -2,7 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Alert, KeyboardAvoidingView, Platform, ScrollView, TouchableOpacity, ActivityIndicator, Switch } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../../components/common/Button';
+import Icon from '@react-native-vector-icons/material-icons';
 import { colors, typography, spacing } from '../../theme';
+import { useResponsive } from '../../hooks/useResponsive';
+import { ScreenContainer } from '../../components/common/ScreenContainer';
 import { unwrapApiResponse, walletApi } from '../../api';
 import { useAppSelector } from '../../redux/hooks';
 import { ProfileStackParamList } from '../../navigation/types';
@@ -11,6 +14,7 @@ type Props = NativeStackScreenProps<ProfileStackParamList, 'Withdraw'>;
 
 export const WithdrawScreen = ({ navigation }: Props) => {
   const user = useAppSelector((s) => s.auth.user);
+  const { fs } = useResponsive();
   const [amount, setAmount] = useState('500');
   const [accountNumber, setAccountNumber] = useState('');
   const [ifscCode, setIfscCode] = useState('');
@@ -118,11 +122,12 @@ export const WithdrawScreen = ({ navigation }: Props) => {
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.container}>
+    <ScreenContainer centered={false} style={styles.container}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <View style={styles.headerCard}>
           <View style={styles.headerIcon}>
-            <Text style={styles.headerIconText}>💸</Text>
+            <Icon name="payments" size={fs(25)} color={colors.primary} />
           </View>
           <View style={styles.headerTextBlock}>
             <View style={styles.headerBadge}>
@@ -159,13 +164,13 @@ export const WithdrawScreen = ({ navigation }: Props) => {
             <View style={styles.methodToggle}>
               <TouchableOpacity
                 style={[styles.methodButton, selectedMethodType === 'bank' && styles.methodButtonActive]}
-                onPress={() => setSelectedMethodType('bank')}
+                onPress={() => { setSelectedMethodType('bank'); setSelectedMethodId(null); }}
               >
                 <Text style={selectedMethodType === 'bank' ? styles.methodButtonTextActive : styles.methodButtonText}>Bank transfer</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.methodButton, selectedMethodType === 'upi' && styles.methodButtonActive]}
-                onPress={() => setSelectedMethodType('upi')}
+                onPress={() => { setSelectedMethodType('upi'); setSelectedMethodId(null); }}
               >
                 <Text style={selectedMethodType === 'upi' ? styles.methodButtonTextActive : styles.methodButtonText}>UPI</Text>
               </TouchableOpacity>
@@ -209,7 +214,7 @@ export const WithdrawScreen = ({ navigation }: Props) => {
                   >
                     <View style={styles.savedMethodLeft}>
                       <View style={styles.savedMethodIcon}>
-                        <Text style={styles.savedMethodIconText}>{pm.type === 'upi' ? '📱' : '🏦'}</Text>
+                        <Icon name={pm.type === 'upi' ? 'smartphone' : 'account-balance'} size={fs(19)} color={colors.primary} />
                       </View>
                       <View style={{ flex: 1 }}>
                         <Text style={styles.savedMethodTitle}>{methodLabel}</Text>
@@ -278,19 +283,21 @@ export const WithdrawScreen = ({ navigation }: Props) => {
         </View>
 
         <Button
-          title={isSubmitting ? 'Submitting...' : 'Request withdrawal'}
+          title="Request withdrawal"
           onPress={handleContinue}
           style={styles.ctaBtn}
-          disabled={isSubmitting}
+          loading={isSubmitting}
         />
       </ScrollView>
-    </KeyboardAvoidingView>
+      </KeyboardAvoidingView>
+    </ScreenContainer>
   );
 };
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
-  content: { flexGrow: 1, padding: spacing.md, paddingBottom: spacing.xl },
+  keyboard: { flex: 1 },
+  content: { flexGrow: 1, paddingTop: spacing.md, paddingBottom: spacing.xxl },
   headerCard: {
     backgroundColor: colors.surface,
     borderRadius: 24,
