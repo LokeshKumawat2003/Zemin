@@ -49,7 +49,7 @@ export const HomeFeedScreen = ({ navigation }: Props) => {
   const [banners] = useState<BannerSlide[]>([
     {
       id: 'go-live',
-      title: 'Go Live\nBe a Star ✨',
+      title: 'Go Live\nBe a Star',
       subtitle: 'Share your vibe, connect with fans and earn!',
       ctaLabel: 'Go Live Now',
     },

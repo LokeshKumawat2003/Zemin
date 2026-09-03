@@ -11,11 +11,13 @@ import {
   ActivityIndicator,
   Image,
 } from 'react-native';
+import Icon from '@react-native-vector-icons/material-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors as baseColors, typography, spacing } from '../../theme';
 import { creatorApi, liveApi, searchApi } from '../../api';
 import { useAppSelector } from '../../redux/hooks';
 import { DiscoverStackParamList } from '../../navigation/DiscoverStack';
+import { useResponsive } from '../../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<DiscoverStackParamList, 'Search' | 'DiscoverMain'>;
 
@@ -89,6 +91,7 @@ const getDefaultPopularTags = (): PopularTag[] => [
 
 export const SearchScreen = ({ navigation }: Props) => {
   const user = useAppSelector((s) => s.auth.user);
+  const { fs } = useResponsive();
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<any>(null);
@@ -113,7 +116,6 @@ export const SearchScreen = ({ navigation }: Props) => {
 
       const liveRooms = Array.isArray(liveRes?.data) ? liveRes.data : [];
       const suggested = liveRooms
-        .slice(0, 4)
         .map((room: any, index: number) => ({
           id: room.userId?._id || room.hostId || room.id || `live-${index}`,
           username: room.userId?.username || room.host?.username || room.username || '',
@@ -125,7 +127,13 @@ export const SearchScreen = ({ navigation }: Props) => {
           avatar: room.userId?.avatar || room.host?.avatar || room.thumbnail || undefined,
           isFollowing: false,
         }))
-        .filter((item: SuggestedPerson) => item.username);
+        .filter((item: SuggestedPerson) => item.username)
+        .filter((item: SuggestedPerson) => {
+          const ownId = user?.id && String(user.id) === String(item.id);
+          const ownUsername = user?.username?.toLowerCase() === item.username.toLowerCase();
+          return !ownId && !ownUsername;
+        })
+        .slice(0, 4);
 
       const fallback = suggested.length >= 4 ? suggested : [
         {
@@ -147,7 +155,7 @@ export const SearchScreen = ({ navigation }: Props) => {
     } finally {
       setLoadingDiscovery(false);
     }
-  }, [user?.username]);
+  }, [user?.id, user?.username]);
 
   useEffect(() => {
     loadDiscovery();
@@ -180,10 +188,18 @@ export const SearchScreen = ({ navigation }: Props) => {
     try {
       const res = await searchApi.search(q);
       const payload = res?.data || { creators: [], posts: [], live: [] };
+      const isCurrentUser = (item: any) => {
+        const itemId = item.id || item.userId || item.hostId || item.user?._id;
+        const itemUsername = item.username || item.user?.username;
+        return (
+          (user?.id && itemId && String(user.id) === String(itemId)) ||
+          (user?.username && itemUsername && user.username.toLowerCase() === String(itemUsername).toLowerCase())
+        );
+      };
       setResults({
-        creators: Array.isArray(payload.creators) ? payload.creators : [],
+        creators: Array.isArray(payload.creators) ? payload.creators.filter((item: any) => !isCurrentUser(item)) : [],
         posts: Array.isArray(payload.posts) ? payload.posts : [],
-        live: Array.isArray(payload.live) ? payload.live : [],
+        live: Array.isArray(payload.live) ? payload.live.filter((item: any) => !isCurrentUser(item)) : [],
       });
     } catch {
       setResults({ creators: [], posts: [], live: [] });
@@ -253,7 +269,7 @@ export const SearchScreen = ({ navigation }: Props) => {
                 style={styles.chip}
                 onPress={() => search(r.label)}
               >
-                <Text style={styles.chipIcon}>🕐</Text>
+                <Icon name="history" size={fs(16)} color={colors.textSecondary} style={styles.chipIcon} />
                 <Text style={styles.chipText}>{r.label}</Text>
               </TouchableOpacity>
             ))}
@@ -322,14 +338,17 @@ export const SearchScreen = ({ navigation }: Props) => {
               <View style={styles.personInfo}>
                 <View style={styles.personNameRow}>
                   <Text style={styles.personName}>{person.displayName}</Text>
-                  {person.verified && <Text style={styles.verifiedIcon}>✔️</Text>}
+                  {person.verified && <Icon name="verified" size={fs(15)} color={colors.primary} />}
                 </View>
                 {person.isLive ? (
                   <View style={styles.personStatusRow}>
                     <View style={styles.personLiveBadge}>
                       <Text style={styles.personLiveBadgeText}>LIVE</Text>
                     </View>
-                    <Text style={styles.personViewers}>👁 {formatViewers(person.viewers)}</Text>
+                    <View style={styles.personViewers}>
+                      <Icon name="visibility" size={fs(14)} color={colors.textSecondary} />
+                      <Text style={styles.personViewersText}>{formatViewers(person.viewers)}</Text>
+                    </View>
                   </View>
                 ) : null}
                 {!!person.tagline && (
@@ -349,7 +368,7 @@ export const SearchScreen = ({ navigation }: Props) => {
               </TouchableOpacity>
 
               <TouchableOpacity style={styles.moreBtn}>
-                <Text style={styles.moreBtnText}>⋮</Text>
+                <Icon name="more-vert" size={fs(22)} color={colors.textSecondary} />
               </TouchableOpacity>
             </TouchableOpacity>
           ))
@@ -417,7 +436,7 @@ export const SearchScreen = ({ navigation }: Props) => {
                     {item.displayName || item.username || item.title || item.caption?.slice(0, 50)}
                   </Text>
                   {item._type === 'creator' && item.verified && (
-                    <Text style={styles.verifiedIcon}>✔️</Text>
+                    <Icon name="verified" size={fs(15)} color={colors.primary} />
                   )}
                 </View>
 
@@ -457,7 +476,7 @@ export const SearchScreen = ({ navigation }: Props) => {
       {/* Search bar */}
       <View style={styles.searchRow}>
         <View style={styles.searchBar}>
-          <Text style={styles.searchIcon}>🔎</Text>
+          <Icon name="search" size={fs(21)} color={colors.textSecondary} />
           <TextInput
             style={styles.searchInput}
             placeholder="Search people or tags"
@@ -501,6 +520,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 28,
     paddingHorizontal: 16,
     height: 48,
@@ -528,6 +549,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 20,
     paddingHorizontal: 14,
     paddingVertical: 8,
@@ -566,7 +589,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.md,
-    borderBottomWidth: 1,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 16,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
     borderBottomColor: colors.border,
     gap: 10,
   },
@@ -590,7 +618,8 @@ const styles = StyleSheet.create({
   personStatusRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 },
   personLiveBadge: { backgroundColor: colors.primary, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 2 },
   personLiveBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  personViewers: { color: colors.textSecondary, fontSize: 12 },
+  personViewers: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  personViewersText: { color: colors.textSecondary, fontSize: 12 },
   personTagline: { color: colors.textSecondary, fontSize: 12, marginTop: 2 },
   followBtn: {
     borderWidth: 1.5,

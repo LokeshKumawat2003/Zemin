@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import Icon from '@react-native-vector-icons/material-icons';
 import { useResponsive } from '../../hooks/useResponsive';
 import { homeColors as colors } from './homeTheme';
 
@@ -33,7 +34,7 @@ export const HomeTopBar = ({
           paddingHorizontal: sp(16),
           paddingBottom: sp(6),
         },
-        menuIcon: { color: colors.text, fontSize: fs(22) },
+        menuButton: { padding: sp(4) },
         logo: {
           fontSize: fs(24),
           fontWeight: '800',
@@ -45,31 +46,26 @@ export const HomeTopBar = ({
           flexDirection: 'row',
           alignItems: 'center',
           backgroundColor: colors.surface,
+          borderWidth: 1,
+          borderColor: colors.border,
           borderRadius: sp(18),
           paddingHorizontal: sp(8),
           paddingVertical: sp(5),
           marginLeft: sp(6),
         },
         coinPill: { paddingRight: sp(4) },
-        pillIcon: { fontSize: fs(13) },
+        pillIcon: { marginRight: sp(5) },
         pillText: { color: colors.text, fontSize: fs(13), fontWeight: '700' },
         addCoinsBtn: {
-          backgroundColor: colors.accentPurple,
-          width: sp(20),
-          height: sp(20),
-          borderRadius: sp(10),
+          backgroundColor: colors.primary,
+          width: sp(24),
+          height: sp(24),
+          borderRadius: sp(12),
           alignItems: 'center',
           justifyContent: 'center',
           marginLeft: sp(4),
         },
-        addCoinsBtnText: {
-          color: '#fff',
-          fontSize: fs(14),
-          fontWeight: '700',
-          marginTop: -1,
-        },
         notifBtn: { position: 'relative', padding: sp(6), marginLeft: sp(6) },
-        notifIcon: { fontSize: fs(20) },
         badge: {
           position: 'absolute',
           top: sp(2),
@@ -89,28 +85,28 @@ export const HomeTopBar = ({
 
   return (
     <View style={styles.topBar}>
-      <TouchableOpacity onPress={onMenuPress} hitSlop={8}>
-        <Text style={styles.menuIcon}>☰</Text>
+      <TouchableOpacity style={styles.menuButton} onPress={onMenuPress} hitSlop={8}>
+        <Icon name="menu" size={fs(28)} color={colors.text} />
       </TouchableOpacity>
 
       <Text style={styles.logo}>Zemin</Text>
 
       <View style={styles.topBarRight}>
         <View style={styles.pill}>
-          <Text style={styles.pillIcon}>💎</Text>
+          <Icon name="diamond" size={fs(18)} color="#9edcff" style={styles.pillIcon} />
           <Text style={styles.pillText}>{gems}</Text>
         </View>
 
         <View style={[styles.pill, styles.coinPill]}>
-          <Text style={styles.pillIcon}>🪙</Text>
+          <Icon name="monetization-on" size={fs(19)} color="#ffd23f" style={styles.pillIcon} />
           <Text style={styles.pillText}>{coins.toLocaleString()}</Text>
           <TouchableOpacity style={styles.addCoinsBtn} onPress={onWalletPress}>
-            <Text style={styles.addCoinsBtnText}>+</Text>
+            <Icon name="add" size={fs(20)} color="#fff" />
           </TouchableOpacity>
         </View>
 
         <TouchableOpacity style={styles.notifBtn} onPress={onNotificationsPress}>
-          <Text style={styles.notifIcon}>🔔</Text>
+          <Icon name="notifications-none" size={fs(28)} color={colors.text} />
           {unreadNotifications > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>

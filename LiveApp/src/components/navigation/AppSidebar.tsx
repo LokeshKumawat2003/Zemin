@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Icon from '@react-native-vector-icons/material-icons';
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { logoutUser } from '../../redux/slices/authSlice';
@@ -19,7 +20,7 @@ import { useResponsive } from '../../hooks/useResponsive';
 type MenuItem = {
   id: string;
   label: string;
-  icon: string;
+  icon: React.ComponentProps<typeof Icon>['name'];
   onPress: () => void;
   danger?: boolean;
 };
@@ -87,31 +88,31 @@ export const AppSidebar = () => {
     {
       id: 'profile',
       label: 'My Profile',
-      icon: '👤',
+      icon: 'person',
       onPress: () => goTo('Profile', 'ProfileMain'),
     },
     {
       id: 'wallet',
       label: 'Wallet & Coins',
-      icon: '🪙',
+      icon: 'account-balance-wallet',
       onPress: () => goTo('Profile', 'Wallet'),
     },
     {
       id: 'gifts',
       label: 'Gift Catalog',
-      icon: '🎁',
+      icon: 'card-giftcard',
       onPress: () => goTo('Profile', 'GiftCatalog'),
     },
     {
       id: 'settings',
       label: 'Settings',
-      icon: '⚙️',
+      icon: 'settings',
       onPress: () => goTo('Profile', 'Settings'),
     },
     {
       id: 'logout',
       label: 'Log Out',
-      icon: '🚪',
+      icon: 'logout',
       onPress: confirmLogout,
       danger: true,
     },
@@ -177,7 +178,7 @@ export const AppSidebar = () => {
           alignItems: 'center',
           justifyContent: 'center',
         },
-        closeBtnText: { color: '#9b95a3', fontSize: fs(16), fontWeight: '700' },
+        profileCoinsRow: { flexDirection: 'row', alignItems: 'center', marginTop: sp(6) },
         divider: {
           height: 1,
           backgroundColor: '#2a2530',
@@ -193,7 +194,7 @@ export const AppSidebar = () => {
           borderRadius: sp(12),
           marginBottom: sp(4),
         },
-        menuIcon: { fontSize: fs(20), width: sp(32) },
+        menuIcon: { width: sp(32) },
         menuLabel: { color: '#fff', fontSize: fs(15), fontWeight: '600' },
         menuLabelDanger: { color: '#ff2f6e' },
         footer: { paddingHorizontal: sp(16), paddingTop: sp(8) },
@@ -239,13 +240,16 @@ export const AppSidebar = () => {
               <Text style={styles.profileHandle} numberOfLines={1}>
                 @{user?.username || 'user'}
               </Text>
-              <Text style={styles.profileCoins}>
-                🪙 {(user?.coinBalance ?? 0).toLocaleString()} coins
-              </Text>
+              <View style={styles.profileCoinsRow}>
+                <Icon name="monetization-on" size={fs(16)} color="#f5b400" />
+                <Text style={styles.profileCoins}>
+                  {(user?.coinBalance ?? 0).toLocaleString()} coins
+                </Text>
+              </View>
             </View>
           </View>
           <TouchableOpacity onPress={close} hitSlop={12} style={styles.closeBtn}>
-            <Text style={styles.closeBtnText}>✕</Text>
+            <Icon name="close" size={fs(19)} color="#9b95a3" />
           </TouchableOpacity>
         </View>
 
@@ -259,7 +263,12 @@ export const AppSidebar = () => {
               onPress={item.onPress}
               activeOpacity={0.7}
             >
-              <Text style={styles.menuIcon}>{item.icon}</Text>
+              <Icon
+                name={item.icon}
+                size={fs(22)}
+                color={item.danger ? '#ff2f6e' : '#c8c3cf'}
+                style={styles.menuIcon}
+              />
               <Text style={[styles.menuLabel, item.danger && styles.menuLabelDanger]}>
                 {item.label}
               </Text>

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Text, ViewStyle } from 'react-native';
+import { View, ViewStyle } from 'react-native';
+import Icon from '@react-native-vector-icons/material-icons';
 import { getFocusedRouteNameFromRoute } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,9 +15,42 @@ import { useResponsive } from '../hooks/useResponsive';
 
 const Tab = createBottomTabNavigator<MainTabParamList>();
 
-const TabIcon = ({ label, focused }: { label: string; focused: boolean }) => {
+const TabIcon = ({
+  name,
+  focused,
+  color,
+  featured = false,
+  iconSize = 27,
+}: {
+  name: React.ComponentProps<typeof Icon>['name'];
+  focused: boolean;
+  color: string;
+  featured?: boolean;
+  iconSize?: number;
+}) => {
   const { fs } = useResponsive();
-  return <Text style={{ fontSize: fs(20), opacity: focused ? 1 : 0.5 }}>{label}</Text>;
+  const icon = <Icon name={name} size={fs(featured ? 29 : iconSize)} color={featured ? '#ff6fa6' : color} />;
+
+  return featured ? (
+    <View
+      style={{
+        width: fs(58),
+        height: fs(58),
+        borderRadius: fs(29),
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#121018',
+        borderWidth: fs(2),
+        borderColor: '#ff2f6e',
+        opacity: focused ? 1 : 0.85,
+        marginTop: -fs(16),
+      }}
+    >
+      {icon}
+    </View>
+  ) : (
+    <View style={{ opacity: focused ? 1 : 0.55 }}>{icon}</View>
+  );
 };
 
 const shouldShowTabBar = (route: any) => {
@@ -38,21 +72,31 @@ export const MainTabNavigator = () => {
   const insets = useSafeAreaInsets();
   const { fs, sp } = useResponsive();
   const bottomPadding = Math.max(insets.bottom, sp(8));
-  const tabBarHeight = sp(56) + bottomPadding;
+  const tabBarHeight = sp(72) + bottomPadding;
 
   const tabBarBaseStyle: ViewStyle = {
     backgroundColor: colors.surface,
-    borderTopColor: colors.border,
+    borderColor: colors.border,
     borderTopWidth: 1,
-    paddingTop: sp(8),
+    borderWidth: 1,
+    borderRadius: sp(24),
+    marginHorizontal: sp(16),
+    marginBottom: sp(8),
+    paddingTop: sp(12),
     paddingBottom: bottomPadding,
     height: tabBarHeight,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: sp(5) },
+    shadowOpacity: 0.35,
+    shadowRadius: sp(12),
+    elevation: 10,
   };
 
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarShowLabel: false,
         tabBarStyle: shouldShowTabBar(route) ? tabBarBaseStyle : { display: 'none' },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
@@ -71,25 +115,25 @@ export const MainTabNavigator = () => {
       <Tab.Screen
         name="Home"
         component={HomeStack}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon label="🏠" focused={focused} /> }}
+        options={{ tabBarIcon: ({ focused, color }) => <TabIcon name="home" focused={focused} color={color} /> }}
       />
       <Tab.Screen
         name="Discover"
         component={DiscoverStack}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon label="🔍" focused={focused} /> }}
+        options={{ tabBarIcon: ({ focused, color }) => <TabIcon name="explore" focused={focused} color={color} /> }}
       />
       <Tab.Screen
         name="GoLive"
         component={LiveStack}
         options={{
           title: 'Go Live',
-          tabBarIcon: ({ focused }) => <TabIcon label="📹" focused={focused} />,
+          tabBarIcon: ({ focused, color }) => <TabIcon name="videocam" focused={focused} color={color} featured />,
         }}
       />
       <Tab.Screen
         name="Chat"
         component={ChatStack}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon label="💬" focused={focused} /> }}
+        options={{ tabBarIcon: ({ focused, color }) => <TabIcon name="chat-bubble" focused={focused} color={color} iconSize={22} /> }}
       />
       <Tab.Screen
         name="Profile"
@@ -100,7 +144,7 @@ export const MainTabNavigator = () => {
             (navigation as any).navigate('Profile', { screen: 'ProfileMain' });
           },
         })}
-        options={{ tabBarIcon: ({ focused }) => <TabIcon label="👤" focused={focused} /> }}
+        options={{ tabBarIcon: ({ focused, color }) => <TabIcon name="person" focused={focused} color={color} /> }}
       />
     </Tab.Navigator>
   );
