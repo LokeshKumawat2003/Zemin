@@ -11,6 +11,7 @@ import {
   TextInput,
   Modal,
 } from 'react-native';
+import Icon from '@react-native-vector-icons/material-icons';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors as baseColors, typography, spacing } from '../../theme';
@@ -23,6 +24,8 @@ import { GiftEntryPicker } from '../../components/live/GiftEntryPicker';
 import { ScheduleDateTimePicker } from '../../components/live/ScheduleDateTimePicker';
 import { GiftItem, getGiftEmoji } from '../../components/live/LiveGiftEffects';
 import { LiveStreamerCard, LiveStreamerCardData } from '../../components/live/LiveStreamerCard';
+import { LiveRoomSection } from '../../components/live/LiveRoomSection';
+import { LiveStudioHeader } from '../../components/live/LiveStudioHeader';
 import { useResponsive } from '../../hooks/useResponsive';
 
 const colors = {
@@ -42,18 +45,6 @@ type Props = NativeStackScreenProps<LiveStackParamList, 'LiveHome'>;
 type StreamMode = 'public' | 'vip';
 type StartMode = 'instant' | 'scheduled';
 
-const EmojiIcon = ({
-  symbol,
-  size = 16,
-  color = '#fff',
-  style,
-}: {
-  symbol: string;
-  size?: number;
-  color?: string;
-  style?: any;
-}) => <Text style={[{ fontSize: size, color }, style]}>{symbol}</Text>;
-
 const formatScheduledTime = (iso?: string) => {
   if (!iso) return '';
   const date = new Date(iso);
@@ -70,7 +61,7 @@ const CARD_GAP = spacing.sm ?? 8;
 export const LiveHomeScreen = ({ navigation }: Props) => {
   const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
-  const { cardWidth } = useResponsive();
+  const { cardWidth, fs } = useResponsive();
   const vipCardWidth = cardWidth;
   const [liveRooms, setLiveRooms] = useState<any[]>([]);
   const [vipRooms, setVipRooms] = useState<any[]>([]);
@@ -376,6 +367,11 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
     );
   };
 
+  const myVipRooms = vipRooms.filter((room) => {
+    const ownerId = room.host?.id || room.host?._id || room.userId?.id || room.userId?._id || room.userId;
+    return Boolean(user?.id && ownerId && String(ownerId) === String(user.id));
+  });
+
   const joinGiftEmoji = selectedJoinRoom?.entryGift
     ? getGiftEmoji(
         selectedJoinRoom.entryGift.giftId,
@@ -389,26 +385,18 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
   return (
     <View style={styles.container}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <View style={styles.headerBar}>
-          <View>
-            <Text style={styles.eyebrow}>Creator Studio</Text>
-            <Text style={styles.title}>Live</Text>
-          </View>
-          <View style={styles.headerBadge}>
-            <EmojiIcon symbol="🔴" size={10} color={colors.live} style={styles.badgeIcon} />
-            <Text style={styles.headerBadgeText}>Now Streaming</Text>
-          </View>
-        </View>
+        <LiveStudioHeader roomCount={vipRooms.length + liveRooms.length} />
 
         <View style={styles.heroCard}>
           <View style={styles.heroGlow} />
           <View style={styles.heroHeader}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.heroLabel}>Go live</Text>
-              <Text style={styles.heroTitle}>Public stream or VIP private room with gift entry</Text>
+              <Text style={styles.heroLabel}>START A ROOM</Text>
+              <Text style={styles.heroTitle}>Your next moment starts here.</Text>
+              <Text style={styles.heroSubtitle}>Choose how you want to connect with your audience.</Text>
             </View>
             <View style={styles.heroBadgeIcon}>
-              <EmojiIcon symbol="✨" size={20} color={colors.gold} />
+              <Icon name="auto-awesome" size={fs(22)} color={colors.gold} />
             </View>
           </View>
 
@@ -417,19 +405,23 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
               style={[styles.modeChip, streamMode === 'public' && styles.modeChipActive]}
               onPress={() => setStreamMode('public')}
             >
-              <Text style={[styles.modeChipText, streamMode === 'public' && styles.modeChipTextActive]}>
-                Public Live
-              </Text>
+              <View style={styles.modeChipContent}>
+                <Icon name="public" size={fs(16)} color={streamMode === 'public' ? colors.primary : colors.textSecondary} />
+                <Text style={[styles.modeChipText, streamMode === 'public' && styles.modeChipTextActive]}>Public Live</Text>
+              </View>
             </TouchableOpacity>
             <TouchableOpacity
               style={[styles.modeChip, streamMode === 'vip' && styles.modeChipActive]}
               onPress={() => setStreamMode('vip')}
             >
-              <Text style={[styles.modeChipText, streamMode === 'vip' && styles.modeChipTextActive]}>
-                VIP Private
-              </Text>
+              <View style={styles.modeChipContent}>
+                <Icon name="lock" size={fs(16)} color={streamMode === 'vip' ? colors.primary : colors.textSecondary} />
+                <Text style={[styles.modeChipText, streamMode === 'vip' && styles.modeChipTextActive]}>VIP Private</Text>
+              </View>
             </TouchableOpacity>
           </View>
+
+          <Text style={styles.formLabel}>Room details</Text>
 
           <View style={styles.inputCard}>
             <TextInput
@@ -452,17 +444,19 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
                     style={[styles.modeChip, startMode === 'instant' && styles.modeChipActive]}
                     onPress={() => setStartMode('instant')}
                   >
-                    <Text style={[styles.modeChipText, startMode === 'instant' && styles.modeChipTextActive]}>
-                      Start instantly
-                    </Text>
+                    <View style={styles.modeChipContent}>
+                      <Icon name="bolt" size={fs(15)} color={startMode === 'instant' ? colors.primary : colors.textSecondary} />
+                      <Text style={[styles.modeChipText, startMode === 'instant' && styles.modeChipTextActive]}>Start instantly</Text>
+                    </View>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.modeChip, startMode === 'scheduled' && styles.modeChipActive]}
                     onPress={() => setStartMode('scheduled')}
                   >
-                    <Text style={[styles.modeChipText, startMode === 'scheduled' && styles.modeChipTextActive]}>
-                      Schedule
-                    </Text>
+                    <View style={styles.modeChipContent}>
+                      <Icon name="event" size={fs(15)} color={startMode === 'scheduled' ? colors.primary : colors.textSecondary} />
+                      <Text style={[styles.modeChipText, startMode === 'scheduled' && styles.modeChipTextActive]}>Schedule</Text>
+                    </View>
                   </TouchableOpacity>
                 </View>
 
@@ -481,7 +475,11 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
                     </Text>
                     <View style={{ flex: 1 }}>
                       <Text style={styles.selectedGiftTitle}>Entry gift: {selectedGift.name}</Text>
-                      <Text style={styles.selectedGiftMeta}>Viewers send this gift • 🪙 {selectedGift.coinCost}</Text>
+                      <View style={styles.coinMetaRow}>
+                        <Text style={styles.selectedGiftMeta}>Viewers send this gift •</Text>
+                        <Icon name="monetization-on" size={fs(15)} color={colors.gold} />
+                        <Text style={styles.selectedGiftMeta}>{selectedGift.coinCost}</Text>
+                      </View>
                     </View>
                   </View>
                 ) : null}
@@ -501,7 +499,7 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
                 <View style={styles.buttonContent}>
-                  <EmojiIcon symbol={streamMode === 'vip' ? '👑' : '▶️'} size={16} color="#fff" />
+                  <Icon name={streamMode === 'vip' ? 'lock' : 'play-arrow'} size={fs(18)} color="#fff" />
                   <Text style={styles.primaryButtonText}>
                     {streamMode === 'vip'
                       ? startMode === 'instant'
@@ -515,39 +513,24 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
           </View>
         </View>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>VIP Rooms</Text>
-          <Text style={styles.sectionHint}>{vipRooms.length} available</Text>
-        </View>
-        {loading ? (
-          <View style={styles.loadingCard}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        ) : vipRooms.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>No VIP rooms yet</Text>
-            <Text style={styles.emptySubtitle}>Create a private VIP room with a gift entry fee</Text>
-          </View>
-        ) : (
-          <View style={styles.vipGrid}>{vipRooms.map(renderVipCard)}</View>
-        )}
+        <LiveRoomSection
+          title="VIP Rooms"
+          countLabel={`${myVipRooms.length} scheduled`}
+          loading={loading}
+          isEmpty={myVipRooms.length === 0}
+          emptyTitle="No scheduled VIP rooms"
+          emptySubtitle="Your scheduled VIP rooms will appear here"
+          style={styles.roomSection}
+        >
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.vipGrid}
+          >
+            {myVipRooms.map(renderVipCard)}
+          </ScrollView>
+        </LiveRoomSection>
 
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Public Live</Text>
-          <Text style={styles.sectionHint}>{liveRooms.length} active</Text>
-        </View>
-        {loading ? (
-          <View style={styles.loadingCard}>
-            <ActivityIndicator color={colors.primary} />
-          </View>
-        ) : liveRooms.length === 0 ? (
-          <View style={styles.emptyCard}>
-            <Text style={styles.emptyTitle}>No public streams</Text>
-            <Text style={styles.emptySubtitle}>Be the first to go live!</Text>
-          </View>
-        ) : (
-          <View style={styles.roomList}>{liveRooms.map(renderRoomCard)}</View>
-        )}
       </ScrollView>
 
       <Modal
@@ -569,7 +552,10 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
               <Text style={styles.modalGiftName}>
                 {selectedJoinRoom?.entryGift?.name || 'Entry Gift'}
               </Text>
-              <Text style={styles.modalGiftCost}>🪙 {joinGiftCost} coins</Text>
+              <View style={styles.modalCoinRow}>
+                <Icon name="monetization-on" size={fs(17)} color={colors.gold} />
+                <Text style={styles.modalGiftCost}>{joinGiftCost} coins</Text>
+              </View>
             </View>
 
             <Text style={styles.modalHint}>
@@ -584,7 +570,10 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
               {joiningGift ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.modalPayBtnText}>{joinGiftEmoji} Send gift & join</Text>
+                <View style={styles.buttonContent}>
+                  <Text style={styles.modalPayBtnText}>Send gift & join</Text>
+                  <Icon name="arrow-forward" size={fs(18)} color="#fff" />
+                </View>
               )}
             </TouchableOpacity>
 
@@ -605,8 +594,8 @@ const styles = StyleSheet.create({
   },
   content: {
     paddingHorizontal: spacing.md,
-    paddingTop: spacing.md,
-    paddingBottom: spacing.xxl,
+    paddingTop: spacing.lg,
+    paddingBottom: spacing.xxl + spacing.lg,
   },
   headerBar: {
     flexDirection: 'row',
@@ -645,13 +634,18 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   heroCard: {
-    backgroundColor: colors.surface,
-    borderRadius: 24,
+    backgroundColor: '#1c1225',
+    borderRadius: 28,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
     overflow: 'hidden',
-    marginBottom: spacing.lg,
+    marginBottom: spacing.xl,
+    shadowColor: colors.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.12,
+    shadowRadius: 18,
+    elevation: 5,
   },
   heroGlow: {
     position: 'absolute',
@@ -680,7 +674,22 @@ const styles = StyleSheet.create({
     ...typography.h2,
     color: colors.text,
     flexShrink: 1,
-    fontSize: 18,
+    fontSize: 21,
+    lineHeight: 28,
+  },
+  heroSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 19,
+    marginTop: 6,
+  },
+  formLabel: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    marginBottom: spacing.sm,
   },
   heroBadgeIcon: {
     width: 40,
@@ -697,13 +706,14 @@ const styles = StyleSheet.create({
   },
   modeChip: {
     flex: 1,
-    borderRadius: 12,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surfaceAlt,
-    paddingVertical: 10,
+    paddingVertical: 13,
     alignItems: 'center',
   },
+  modeChipContent: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   modeChipActive: {
     borderColor: colors.primary,
     backgroundColor: 'rgba(255,47,110,0.12)',
@@ -726,7 +736,7 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     color: colors.text,
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.md,
+    paddingVertical: spacing.lg,
     fontSize: 15,
     fontWeight: '500',
   },
@@ -744,6 +754,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,47,110,0.25)',
     padding: spacing.md,
+    minHeight: 76,
   },
   selectedGiftEmoji: {
     fontSize: 36,
@@ -759,12 +770,13 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginTop: 4,
   },
+  coinMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   vipGrid: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
     gap: CARD_GAP,
     marginBottom: spacing.md,
   },
+  roomSection: { marginTop: spacing.sm },
   vipStartBtnOverlay: {
     backgroundColor: colors.accentPurple,
     borderRadius: 12,
@@ -821,6 +833,7 @@ const styles = StyleSheet.create({
   modalGiftEmoji: { fontSize: 56 },
   modalGiftName: { color: colors.text, fontSize: 16, fontWeight: '700', marginTop: 8 },
   modalGiftCost: { color: colors.gold, fontSize: 14, fontWeight: '700', marginTop: 4 },
+  modalCoinRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   modalHint: {
     color: colors.textSecondary,
     fontSize: 12,
@@ -833,6 +846,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingVertical: 14,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 8,
   },
   modalPayBtnDisabled: { opacity: 0.7 },
   modalPayBtnText: { color: '#fff', fontWeight: '800', fontSize: 15 },
