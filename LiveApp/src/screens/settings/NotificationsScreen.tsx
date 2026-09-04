@@ -9,12 +9,15 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
+import Icon from '@react-native-vector-icons/material-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useFocusEffect } from '@react-navigation/native';
 import { colors, typography, spacing } from '../../theme';
 import { notificationApi, unwrapApiResponse } from '../../api';
 import { Button } from '../../components/common/Button';
 import { HomeStackParamList } from '../../navigation/HomeStack';
+import { useResponsive } from '../../hooks/useResponsive';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'Notifications'>;
 
@@ -49,15 +52,18 @@ const FILTER_TABS: { key: FilterKey; label: string }[] = [
   { key: 'system', label: 'System' },
 ];
 
-const TYPE_ICONS: Record<string, string> = {
-  follow: '👤',
-  like: '❤️',
-  comment: '💬',
-  gift: '🎁',
-  subscription: '⭐',
-  live: '📹',
-  message: '✉️',
-  system: '🔔',
+const TYPE_ICONS: Record<string, { name: React.ComponentProps<typeof Icon>['name']; color: string }> = {
+  follow: { name: 'person-add', color: '#ff2f6e' },
+  like: { name: 'favorite', color: '#ff4f7b' },
+  comment: { name: 'chat-bubble', color: '#b879ff' },
+  gift: { name: 'card-giftcard', color: '#f5b400' },
+  subscription: { name: 'star', color: '#f5b400' },
+  live: { name: 'videocam', color: '#ff2f6e' },
+  message: { name: 'mail', color: '#6db7ff' },
+  system: { name: 'notifications', color: '#9b95a3' },
+  report: { name: 'flag', color: '#ff8c66' },
+  payment: { name: 'payments', color: '#57d68d' },
+  payout: { name: 'account-balance', color: '#57d68d' },
 };
 
 const SOCIAL_TYPES = new Set(['follow', 'like', 'comment']);
@@ -93,6 +99,9 @@ export const NotificationsScreen = ({ navigation }: Props) => {
   const [filter, setFilter] = useState<FilterKey>('all');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
+  const [markingAll, setMarkingAll] = useState(false);
+  const { fs, sp } = useResponsive();
+  const insets = useSafeAreaInsets();
 
   const filteredItems = useMemo(
     () => items.filter((item) => matchesFilter(item, filter)),
@@ -152,11 +161,15 @@ export const NotificationsScreen = ({ navigation }: Props) => {
   };
 
   const markAll = async () => {
+    if (markingAll) return;
+    setMarkingAll(true);
     try {
       await notificationApi.markAllRead();
-      load(1);
+      setItems((prev) => prev.map((item) => ({ ...item, isRead: true })));
     } catch {
       Alert.alert('Error', 'Could not mark all as read');
+    } finally {
+      setMarkingAll(false);
     }
   };
 
@@ -212,35 +225,49 @@ export const NotificationsScreen = ({ navigation }: Props) => {
     }
   };
 
-  const renderItem = ({ item }: { item: NotificationItem }) => (
+  const renderItem = ({ item }: { item: NotificationItem }) => {
+    const icon = TYPE_ICONS[item.type] || TYPE_ICONS.system;
+
+    return (
     <TouchableOpacity
       style={[styles.row, !item.isRead && styles.unread]}
       onPress={() => handlePress(item)}
+      activeOpacity={0.78}
     >
-      <Text style={styles.icon}>{TYPE_ICONS[item.type] || '🔔'}</Text>
+      <View style={[styles.iconBox, { backgroundColor: `${icon.color}1c` }]}>
+        <Icon name={icon.name} size={fs(21)} color={icon.color} />
+      </View>
       <View style={styles.content}>
-        <Text style={styles.rowTitle}>{item.title}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.rowTitle} numberOfLines={1}>{item.title}</Text>
+          {!item.isRead && <View style={styles.unreadBadge}><Text style={styles.unreadBadgeText}>NEW</Text></View>}
+        </View>
         <Text style={styles.rowBody} numberOfLines={2}>
           {item.body}
         </Text>
         <Text style={styles.time}>{formatRelativeTime(item.createdAt)}</Text>
       </View>
-      {!item.isRead && <View style={styles.dot} />}
+      <Icon name="chevron-right" size={fs(20)} color={colors.textSecondary} />
     </TouchableOpacity>
-  );
+    );
+  };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()}>
-          <Text style={styles.back}>← Back</Text>
+      <View style={[styles.header, { paddingTop: insets.top + sp(12) }]}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton} hitSlop={8}>
+          <Icon name="arrow-back" size={fs(22)} color={colors.textPrimary} />
         </TouchableOpacity>
-        <Text style={styles.title}>Notifications</Text>
-        <Button title="Read all" variant="ghost" onPress={markAll} style={styles.readAll} />
+        <View style={styles.headerCopy}>
+          <Text style={styles.eyebrow}>Updates</Text>
+          <Text style={styles.title}>Notifications</Text>
+        </View>
+        <Button title="Read all" variant="ghost" onPress={markAll} loading={markingAll} style={styles.readAll} />
       </View>
 
       <FlatList
         horizontal
+        style={styles.filterList}
         data={FILTER_TABS}
         keyExtractor={(tab) => tab.key}
         showsHorizontalScrollIndicator={false}
@@ -258,7 +285,7 @@ export const NotificationsScreen = ({ navigation }: Props) => {
       />
 
       {loading ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
+        <ActivityIndicator color={colors.primary} style={{ marginTop: sp(40) }} />
       ) : error ? (
         <View style={styles.centered}>
           <Text style={styles.errorText}>{error}</Text>
@@ -279,11 +306,12 @@ export const NotificationsScreen = ({ navigation }: Props) => {
               <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.md }} />
             ) : null
           }
-          ListEmptyComponent={
-            <Text style={styles.empty}>
-              {filter === 'all' ? 'No notifications yet' : 'No notifications in this category'}
-            </Text>
-          }
+          contentContainerStyle={filteredItems.length === 0 ? styles.emptyList : styles.listContent}
+          ListEmptyComponent={<View style={styles.emptyState}>
+            <View style={styles.emptyIcon}><Icon name="notifications-none" size={fs(34)} color={colors.textSecondary} /></View>
+            <Text style={styles.emptyTitle}>{filter === 'all' ? 'No notifications yet' : 'Nothing in this category'}</Text>
+            <Text style={styles.emptySubtitle}>You’re all caught up for now.</Text>
+          </View>}
         />
       )}
     </View>
@@ -295,24 +323,39 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    paddingTop: spacing.lg,
+    paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
     gap: spacing.sm,
   },
-  back: { ...typography.body, color: colors.primary },
-  title: { ...typography.h2, color: colors.textPrimary, flex: 1 },
-  readAll: { height: 36, paddingHorizontal: spacing.sm },
+  backButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  headerCopy: { flex: 1 },
+  eyebrow: { color: colors.primary, fontSize: 11, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.2 },
+  title: { ...typography.h2, color: colors.textPrimary, marginTop: 2 },
+  readAll: { height: 38, minWidth: 76, paddingHorizontal: spacing.sm },
   tabs: {
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.sm,
+    alignItems: 'center',
     gap: spacing.sm,
   },
+  filterList: { flexGrow: 0, height: 56 },
   tab: {
     paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    borderRadius: 20,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 14,
     backgroundColor: colors.surface,
-    marginRight: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   tabActive: { backgroundColor: colors.primary },
   tabText: { ...typography.caption, color: colors.textSecondary },
@@ -320,19 +363,36 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    gap: spacing.md,
+    marginHorizontal: spacing.md,
+    marginBottom: spacing.sm,
+    padding: spacing.sm,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    gap: spacing.sm,
   },
-  unread: { backgroundColor: colors.surface },
-  icon: { fontSize: 24 },
+  unread: { borderColor: 'rgba(255,47,110,0.42)', backgroundColor: 'rgba(255,47,110,0.08)' },
+  iconBox: {
+    width: 46,
+    height: 46,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   content: { flex: 1 },
-  rowTitle: { ...typography.body, color: colors.textPrimary, fontWeight: '600' },
-  rowBody: { ...typography.caption, color: colors.textSecondary, marginTop: 2 },
-  time: { ...typography.caption, color: colors.textSecondary, marginTop: 4, fontSize: 11 },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.primary },
-  empty: { ...typography.body, color: colors.textSecondary, textAlign: 'center', marginTop: 60 },
+  titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  rowTitle: { ...typography.body, color: colors.textPrimary, fontWeight: '700', flex: 1 },
+  unreadBadge: { backgroundColor: colors.primary, borderRadius: 6, paddingHorizontal: 5, paddingVertical: 2 },
+  unreadBadgeText: { color: '#fff', fontSize: 8, fontWeight: '800' },
+  rowBody: { ...typography.caption, color: colors.textSecondary, marginTop: 4, lineHeight: 18 },
+  time: { ...typography.caption, color: colors.textSecondary, marginTop: 5, fontSize: 11 },
+  listContent: { paddingBottom: spacing.lg },
+  emptyList: { flexGrow: 1, justifyContent: 'center', paddingHorizontal: spacing.lg },
+  emptyState: { alignItems: 'center' },
+  emptyIcon: { width: 70, height: 70, borderRadius: 35, backgroundColor: colors.surface, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.md },
+  emptyTitle: { ...typography.body, color: colors.textPrimary, fontWeight: '700' },
+  emptySubtitle: { ...typography.caption, color: colors.textSecondary, marginTop: 5 },
   centered: { alignItems: 'center', marginTop: 60, paddingHorizontal: spacing.lg },
   errorText: { ...typography.body, color: colors.error, textAlign: 'center', marginBottom: spacing.md },
   retryBtn: { minWidth: 120 },
