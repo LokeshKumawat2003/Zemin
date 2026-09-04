@@ -5,8 +5,10 @@ const Creator = require('../models/Creator.model');
 const Wallet = require('../models/Wallet.model');
 const PpvPurchase = require('../models/PpvPurchase.model');
 const User = require('../models/User.model');
+const Gift = require('../models/Gift.model');
 const AppError = require('../utils/AppError');
 const notificationService = require('./notification.service');
+const { giftService } = require('./wallet.service');
 
 class PostService {
   async createPost(userId, data) {
@@ -15,6 +17,17 @@ class PostService {
     if (creator) creatorId = creator._id;
 
     const hashtags = (data.caption?.match(/#\w+/g) || []).map((t) => t.slice(1).toLowerCase());
+    const isPPV = data.isPPV || data.visibility === 'ppv';
+    const unlockGiftId = data.unlockGiftId;
+
+    if (isPPV && !unlockGiftId) {
+      throw new AppError('VALIDATION_ERROR', 400, 'Choose a gift to unlock this post');
+    }
+    if (isPPV) {
+      await giftService.ensureDefaultGifts();
+      const gift = await Gift.findOne({ giftId: unlockGiftId, isActive: true });
+      if (!gift) throw new AppError('GIFT_NOT_FOUND', 404, 'Unlock gift not found');
+    }
 
     const post = await Post.create({
       userId,
@@ -23,8 +36,9 @@ class PostService {
       media: data.media || [],
       caption: data.caption,
       visibility: data.visibility || 'public',
-      isPPV: data.isPPV || false,
+      isPPV,
       ppvPrice: data.ppvPrice,
+      unlockGiftId,
       tags: data.tags || [],
       hashtags,
       publishedAt: new Date(),
@@ -44,11 +58,16 @@ class PostService {
 
     let userHasLiked = false;
     let hasPurchased = false;
+    let unlockGift = null;
     if (viewerId) {
       userHasLiked = !!(await Like.findOne({ userId: viewerId, targetType: 'post', targetId: post._id }));
       if (post.isPPV) {
         hasPurchased = !!(await PpvPurchase.findOne({ userId: viewerId, postId: post._id }));
       }
+    }
+    if (post.isPPV && post.unlockGiftId) {
+      await giftService.ensureDefaultGifts();
+      unlockGift = await Gift.findOne({ giftId: post.unlockGiftId, isActive: true }).lean();
     }
 
     const isOwner = viewerId && post.userId._id.toString() === viewerId.toString();
@@ -62,6 +81,9 @@ class PostService {
       visibility: post.visibility,
       isPPV: post.isPPV,
       ppvPrice: post.ppvPrice,
+      unlockGift: unlockGift
+        ? { giftId: unlockGift.giftId, name: unlockGift.name, emoji: unlockGift.emoji, coinCost: unlockGift.coinCost }
+        : null,
       isLocked,
       hasPurchased: hasPurchased || isOwner,
       stats: post.stats,
@@ -83,6 +105,8 @@ class PostService {
     const post = await Post.findById(postId);
     if (!post || post.isDeleted) throw new AppError('NOT_FOUND', 404, 'Post not found');
     if (!post.isPPV) throw new AppError('VALIDATION_ERROR', 400, 'Post is not pay-per-view');
+
+    if (post.unlockGiftId) return this.unlockWithGift(userId, post);
 
     const existing = await PpvPurchase.findOne({ userId, postId });
     if (existing) {
@@ -117,6 +141,38 @@ class PostService {
     await post.save();
 
     return { purchased: true, postId: post._id.toString(), coinCost, remainingBalance: wallet.coinBalance };
+  }
+
+  async unlockWithGift(userId, post) {
+    const existing = await PpvPurchase.findOne({ userId, postId: post._id });
+    if (existing) return { purchased: true, postId: post._id.toString(), giftId: post.unlockGiftId };
+    if (post.userId.toString() === userId.toString()) {
+      throw new AppError('VALIDATION_ERROR', 400, 'You cannot unlock your own post');
+    }
+
+    await giftService.ensureDefaultGifts();
+    const gift = await Gift.findOne({ giftId: post.unlockGiftId, isActive: true });
+    if (!gift) throw new AppError('GIFT_NOT_FOUND', 404, 'Unlock gift not found');
+
+    const giftResult = await giftService.sendGift({
+      senderId: userId,
+      recipientId: post.userId,
+      giftId: gift.giftId,
+      quantity: 1,
+      context: { type: 'post', postId: post._id.toString() },
+    });
+    await PpvPurchase.create({ userId, postId: post._id, coinCost: giftResult.totalCost });
+    post.stats.viewsCount += 1;
+    await post.save();
+
+    return {
+      purchased: true,
+      postId: post._id.toString(),
+      giftId: gift.giftId,
+      giftName: gift.name,
+      coinCost: giftResult.totalCost,
+      remainingBalance: giftResult.remainingBalance,
+    };
   }
 
   async likePost(userId, postId) {

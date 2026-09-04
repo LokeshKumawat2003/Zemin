@@ -14,9 +14,18 @@ import { getGiftEmoji, GiftItem } from './LiveGiftEffects';
 type Props = {
   selectedGiftId?: string;
   onSelect: (gift: GiftItem) => void;
+  label?: string;
+  hint?: string;
+  selectedLabel?: string;
 };
 
-export const GiftEntryPicker = ({ selectedGiftId, onSelect }: Props) => {
+export const GiftEntryPicker = ({
+  selectedGiftId,
+  onSelect,
+  label = 'Choose entry gift',
+  hint = 'Viewers tap this gift to pay and join your private room.',
+  selectedLabel = 'Entry gift',
+}: Props) => {
   const [gifts, setGifts] = useState<GiftItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -44,8 +53,8 @@ export const GiftEntryPicker = ({ selectedGiftId, onSelect }: Props) => {
 
   return (
     <View style={styles.wrap}>
-      <Text style={styles.label}>Choose entry gift</Text>
-      <Text style={styles.hint}>Viewers tap this gift to pay and join your private room.</Text>
+      <Text style={styles.label}>{label}</Text>
+      <Text style={styles.hint}>{hint}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {gifts.map((gift) => {
           const selected = gift.giftId === selectedGiftId;
@@ -61,7 +70,7 @@ export const GiftEntryPicker = ({ selectedGiftId, onSelect }: Props) => {
                 {gift.name}
               </Text>
               <Text style={styles.giftCost}>🪙 {gift.coinCost}</Text>
-              {selected ? <Text style={styles.selectedBadge}>Entry gift</Text> : null}
+              {selected ? <Text style={styles.selectedBadge}>{selectedLabel}</Text> : null}
             </TouchableOpacity>
           );
         })}

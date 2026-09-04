@@ -108,9 +108,15 @@ export const PostDetailScreen = ({ route, navigation }: Props) => {
       {post.isLocked ? (
         <View style={styles.lockedBox}>
           <Text style={styles.lockedIcon}>🔒</Text>
-          <Text style={styles.lockedTitle}>Pay-Per-View Content</Text>
-          <Text style={styles.lockedDesc}>Unlock for {post.ppvPrice} coins</Text>
-          <Button title={`Unlock — ${post.ppvPrice} coins`} onPress={unlockPost} loading={unlocking} />
+          <Text style={styles.lockedTitle}>Gift to unlock</Text>
+          <Text style={styles.lockedDesc}>
+            Send {post.unlockGift?.emoji || '🎁'} {post.unlockGift?.name || 'the unlock gift'} to view this post.
+          </Text>
+          <Button
+            title={`Send ${post.unlockGift?.emoji || '🎁'} ${post.unlockGift?.name || 'gift'}${post.unlockGift?.coinCost ? ` · ${post.unlockGift.coinCost} coins` : ''}`}
+            onPress={unlockPost}
+            loading={unlocking}
+          />
         </View>
       ) : (
         <>

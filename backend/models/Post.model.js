@@ -30,6 +30,7 @@ const postSchema = new mongoose.Schema(
     isPPV: { type: Boolean, default: false },
     ppvPrice: Number,
     ppvCurrency: { type: String, default: 'USD' },
+    unlockGiftId: String,
     tags: [String],
     hashtags: [String],
     stats: {
