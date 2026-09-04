@@ -291,6 +291,15 @@ export const ProfileScreen = ({ navigation }: Props) => {
             {user?.isCreator && (
               <TouchableOpacity
                 style={[styles.quickActionBtn, styles.quickActionPrimary]}
+                onPress={() => navigation.navigate('CreateSubscriptionTier')}
+              >
+                <Icon name="add-circle-outline" size={fs(17)} color={colors.primary} />
+                <Text style={[styles.quickActionText, styles.quickActionTextPrimary]}>Create Plan</Text>
+              </TouchableOpacity>
+            )}
+            {user?.isCreator && (
+              <TouchableOpacity
+                style={[styles.quickActionBtn, styles.quickActionPrimary]}
                 onPress={() =>
                   navigation.navigate('CreatorProfile', { username: user!.username })
                 }

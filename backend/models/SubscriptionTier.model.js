@@ -10,6 +10,8 @@ const subscriptionTierSchema = new mongoose.Schema(
     description: String,
     benefits: [String],
     badge: String,
+    accessAllLive: { type: Boolean, default: false },
+    unlockAllPosts: { type: Boolean, default: false },
     sortOrder: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
   },

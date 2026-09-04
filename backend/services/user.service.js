@@ -82,6 +82,8 @@ class SubscriptionService {
       description: t.description,
       benefits: t.benefits,
       badge: t.badge,
+      accessAllLive: t.accessAllLive,
+      unlockAllPosts: t.unlockAllPosts,
     }));
   }
 
@@ -98,6 +100,8 @@ class SubscriptionService {
       description: data.description,
       benefits: data.benefits || [],
       badge: data.badge,
+      accessAllLive: data.accessAllLive === true,
+      unlockAllPosts: data.unlockAllPosts === true,
       sortOrder: data.sortOrder || 0,
     });
 
@@ -107,11 +111,12 @@ class SubscriptionService {
   async subscribe(subscriberId, tierId) {
     const tier = await SubscriptionTier.findById(tierId);
     if (!tier || !tier.isActive) throw new AppError('NOT_FOUND', 404, 'Tier not found');
-
-    const wallet = await Wallet.findOne({ userId: subscriberId });
-    if (!wallet || wallet.fiatBalance < tier.price) {
-      throw new AppError('INSUFFICIENT_BALANCE', 400, 'Not enough wallet balance');
+    if (tier.userId.toString() === subscriberId.toString()) {
+      throw new AppError('VALIDATION_ERROR', 400, 'You cannot subscribe to yourself');
     }
+
+    const creator = await Creator.findById(tier.creatorId);
+    if (!creator) throw new AppError('NOT_FOUND', 404, 'Creator not found');
 
     const existing = await Subscription.findOne({
       subscriberId,
@@ -120,10 +125,13 @@ class SubscriptionService {
     });
     if (existing) throw new AppError('VALIDATION_ERROR', 400, 'Already subscribed');
 
-    wallet.fiatBalance -= tier.price;
-    await wallet.save();
+    const wallet = await Wallet.findOneAndUpdate(
+      { userId: subscriberId, fiatBalance: { $gte: tier.price } },
+      { $inc: { fiatBalance: -tier.price } },
+      { new: true }
+    );
+    if (!wallet) throw new AppError('INSUFFICIENT_BALANCE', 400, 'Not enough wallet balance');
 
-    const creator = await Creator.findById(tier.creatorId);
     const creatorEarnings = Math.floor(tier.price * 0.8);
     creator.availableBalance += creatorEarnings;
     creator.totalEarnings += creatorEarnings;
@@ -146,6 +154,17 @@ class SubscriptionService {
       currentPeriodEnd: end,
     });
 
+    const Transaction = require('../models/Transaction.model');
+    await Transaction.create({
+      userId: subscriberId,
+      type: 'subscription',
+      amount: tier.price,
+      currency: tier.currency,
+      status: 'completed',
+      description: `Subscribed to ${tier.name}`,
+      metadata: { subscriptionId: sub._id, tierId: tier._id, creatorUserId: tier.userId },
+    });
+
     await notificationService.create({
       userId: tier.userId,
       type: 'subscription',
@@ -157,6 +176,8 @@ class SubscriptionService {
     return {
       subscriptionId: sub._id.toString(),
       tierName: tier.name,
+      accessAllLive: tier.accessAllLive,
+      unlockAllPosts: tier.unlockAllPosts,
       expiresAt: end,
     };
   }

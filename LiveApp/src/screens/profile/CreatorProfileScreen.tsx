@@ -217,6 +217,17 @@ export const CreatorProfileScreen = ({ route, navigation }: Props) => {
         </View>
       </View>
 
+      {isOwnProfile && (profile.isCreator || currentUser?.isCreator || currentUser?.role === 'creator') && (
+        <TouchableOpacity
+          onPress={() => navigation.navigate('CreateSubscriptionTier')}
+          style={styles.createPlanBtn}
+          activeOpacity={0.82}
+        >
+          <Icon name="add-circle-outline" size={fs(18)} color={colors.primary} />
+          <Text style={styles.createPlanText}>Create subscription plan</Text>
+        </TouchableOpacity>
+      )}
+
       {!isOwnProfile && (
         <View style={styles.actions}>
           <TouchableOpacity
@@ -382,6 +393,8 @@ const styles = StyleSheet.create({
   actionBtnTextDark: { color: colors.textPrimary, fontSize: 14, fontWeight: '800' },
   subscribeBtn: { marginHorizontal: spacing.lg, marginBottom: spacing.md, minHeight: 44, borderRadius: 13, backgroundColor: '#7c3aed', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
   subscribeText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  createPlanBtn: { marginHorizontal: spacing.lg, marginBottom: spacing.md, minHeight: 44, borderRadius: 13, borderWidth: 1, borderColor: colors.primary, backgroundColor: 'rgba(255,47,110,0.08)', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  createPlanText: { color: colors.primary, fontSize: 15, fontWeight: '800' },
   tabsRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,

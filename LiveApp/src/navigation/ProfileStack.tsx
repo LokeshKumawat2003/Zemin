@@ -7,6 +7,7 @@ import { WithdrawScreen } from '../screens/wallet/WithdrawScreen';
 import { CreatorProfileScreen } from '../screens/profile/CreatorProfileScreen';
 import { SettingsScreen } from '../screens/settings/SettingsScreen';
 import { SubscriptionTiersScreen, MySubscriptionsScreen } from '../screens/subscription/SubscriptionTiersScreen';
+import { CreateSubscriptionTierScreen } from '../screens/subscription/CreateSubscriptionTierScreen';
 import { GiftCatalogScreen } from '../screens/gifts/GiftCatalogScreen';
 import { FollowListScreen } from '../screens/profile/FollowListScreen';
 import { ProfileStackParamList } from './types';
@@ -30,6 +31,7 @@ export const ProfileStack = () => (
     <Stack.Screen name="Subscriptions" component={MySubscriptionsScreen} options={{ title: 'Subscriptions' }} />
     <Stack.Screen name="GiftCatalog" component={GiftCatalogScreen} options={{ title: 'Gifts' }} />
     <Stack.Screen name="SubscriptionTiers" component={SubscriptionTiersScreen} options={{ title: 'Subscribe' }} />
+    <Stack.Screen name="CreateSubscriptionTier" component={CreateSubscriptionTierScreen} options={{ title: 'Create Plan' }} />
     <Stack.Screen name="CreatorProfile" component={CreatorProfileScreen} options={{ title: 'Creator' }} />
     <Stack.Screen name="FollowList" component={FollowListScreen} options={{ title: 'People' }} />
   </Stack.Navigator>

@@ -7,6 +7,7 @@ import { CreatorProfileScreen } from '../screens/profile/CreatorProfileScreen';
 import { FollowListScreen } from '../screens/profile/FollowListScreen';
 import { NotificationsScreen } from '../screens/settings/NotificationsScreen';
 import { SubscriptionTiersScreen } from '../screens/subscription/SubscriptionTiersScreen';
+import { CreateSubscriptionTierScreen } from '../screens/subscription/CreateSubscriptionTierScreen';
 import { ReportScreen } from '../screens/settings/ReportScreen';
 import { LiveViewerScreen } from '../screens/live/LiveViewerScreen';
 import { WalletScreen } from '../screens/wallet/WalletScreen';
@@ -21,6 +22,7 @@ export type HomeStackParamList = {
   FollowList: { username: string; initialTab?: 'followers' | 'following' };
   Notifications: undefined;
   SubscriptionTiers: { username: string; creatorId: string };
+  CreateSubscriptionTier: undefined;
   Report: { targetType: 'user' | 'post' | 'live' | 'message'; targetId: string };
   LiveViewer: {
     roomId: string;
@@ -54,6 +56,7 @@ export const HomeStack = () => (
     <Stack.Screen name="FollowList" component={FollowListScreen} options={{ title: 'People' }} />
     <Stack.Screen name="Notifications" component={NotificationsScreen} options={{ headerShown: false }} />
     <Stack.Screen name="SubscriptionTiers" component={SubscriptionTiersScreen} options={{ title: 'Subscribe' }} />
+    <Stack.Screen name="CreateSubscriptionTier" component={CreateSubscriptionTierScreen} options={{ title: 'Create Plan' }} />
     <Stack.Screen name="Report" component={ReportScreen} options={{ title: 'Report' }} />
     <Stack.Screen name="LiveViewer" component={LiveViewerScreen} options={{ title: 'Live' }} />
     <Stack.Screen name="Wallet" component={WalletScreen} options={{ title: 'Wallet' }} />

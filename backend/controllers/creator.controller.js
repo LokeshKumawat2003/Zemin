@@ -67,7 +67,7 @@ exports.getCreatorPosts = async (req, res, next) => {
   try {
     const user = await creatorService.getByUsername(req.params.username);
     const { page, limit, skip } = getPagination(req.query);
-    const filter = { userId: user.id, isDeleted: false, visibility: { $in: ['public', 'ppv'] } };
+    const filter = { userId: user.id, isDeleted: false, visibility: { $in: ['public', 'ppv', 'subscribers'] } };
     const [posts, total] = await Promise.all([
       postService.getCreatorPosts(req.user?._id, user.id, { skip, limit }),
       Post.countDocuments(filter),

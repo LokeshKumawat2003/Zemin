@@ -4,6 +4,7 @@ const Follower = require('../models/Follower.model');
 const Creator = require('../models/Creator.model');
 const Wallet = require('../models/Wallet.model');
 const PpvPurchase = require('../models/PpvPurchase.model');
+const Subscription = require('../models/Subscription.model');
 const User = require('../models/User.model');
 const Gift = require('../models/Gift.model');
 const AppError = require('../utils/AppError');
@@ -59,10 +60,22 @@ class PostService {
     let userHasLiked = false;
     let hasPurchased = false;
     let unlockGift = null;
+    let hasSubscriptionAccess = false;
+    const requiresSubscription = post.visibility === 'subscribers';
     if (viewerId) {
       userHasLiked = !!(await Like.findOne({ userId: viewerId, targetType: 'post', targetId: post._id }));
       if (post.isPPV) {
         hasPurchased = !!(await PpvPurchase.findOne({ userId: viewerId, postId: post._id }));
+      }
+      if (post.isPPV || requiresSubscription) {
+        const subscription = await Subscription.findOne({
+          subscriberId: viewerId,
+          creatorUserId: post.userId._id,
+          status: 'active',
+          currentPeriodEnd: { $gt: new Date() },
+        }).populate('tierId', 'unlockAllPosts');
+        hasSubscriptionAccess = Boolean(subscription && (requiresSubscription || subscription.tierId?.unlockAllPosts));
+        hasPurchased = hasPurchased || hasSubscriptionAccess;
       }
     }
     if (post.isPPV && post.unlockGiftId) {
@@ -71,7 +84,7 @@ class PostService {
     }
 
     const isOwner = viewerId && post.userId._id.toString() === viewerId.toString();
-    const isLocked = post.isPPV && !hasPurchased && !isOwner;
+    const isLocked = (post.isPPV || requiresSubscription) && !hasPurchased && !isOwner;
 
     return {
       id: post._id.toString(),
@@ -86,6 +99,7 @@ class PostService {
         : null,
       isLocked,
       hasPurchased: hasPurchased || isOwner,
+      hasSubscriptionAccess,
       stats: post.stats,
       creator: {
         id: post.userId._id.toString(),
@@ -105,6 +119,18 @@ class PostService {
     const post = await Post.findById(postId);
     if (!post || post.isDeleted) throw new AppError('NOT_FOUND', 404, 'Post not found');
     if (!post.isPPV) throw new AppError('VALIDATION_ERROR', 400, 'Post is not pay-per-view');
+
+    const subscription = await Subscription.findOne({
+      subscriberId: userId,
+      creatorUserId: post.userId,
+      status: 'active',
+      currentPeriodEnd: { $gt: new Date() },
+    }).populate('tierId', 'unlockAllPosts');
+    if (subscription?.tierId?.unlockAllPosts) {
+      post.stats.viewsCount += 1;
+      await post.save();
+      return { purchased: true, postId: post._id.toString(), hasSubscriptionAccess: true };
+    }
 
     if (post.unlockGiftId) return this.unlockWithGift(userId, post);
 
@@ -147,7 +173,7 @@ class PostService {
     const posts = await Post.find({
       userId: creatorUserId,
       isDeleted: false,
-      visibility: { $in: ['public', 'ppv'] },
+      visibility: { $in: ['public', 'ppv', 'subscribers'] },
     })
       .sort({ publishedAt: -1 })
       .skip(skip)
@@ -159,6 +185,17 @@ class PostService {
       ? await PpvPurchase.find({ userId, postId: { $in: ppvPosts.map((post) => post._id) } }).select('postId').lean()
       : [];
     const purchasedIds = new Set(purchases.map((purchase) => purchase.postId.toString()));
+    const subscription = userId
+      ? await Subscription.findOne({
+          subscriberId: userId,
+          creatorUserId,
+          status: 'active',
+          currentPeriodEnd: { $gt: new Date() },
+        }).populate('tierId', 'unlockAllPosts')
+      : null;
+    const hasSubscriptionAccess = Boolean(
+      subscription && posts.some((post) => post.visibility === 'subscribers')
+    );
     const giftIds = ppvPosts.map((post) => post.unlockGiftId).filter(Boolean);
     const gifts = giftIds.length
       ? await Gift.find({ giftId: { $in: giftIds }, isActive: true }).lean()
@@ -167,8 +204,10 @@ class PostService {
 
     return posts.map((post) => {
       const isOwner = userId && post.userId.toString() === userId.toString();
-      const hasPurchased = purchasedIds.has(post._id.toString());
-      const isLocked = post.isPPV && !isOwner && !hasPurchased;
+      const hasPurchased = purchasedIds.has(post._id.toString()) ||
+        (post.visibility === 'subscribers' && hasSubscriptionAccess) ||
+        (post.isPPV && Boolean(subscription?.tierId?.unlockAllPosts));
+      const isLocked = (post.isPPV || post.visibility === 'subscribers') && !isOwner && !hasPurchased;
       const gift = post.unlockGiftId ? giftMap.get(post.unlockGiftId) : null;
 
       return {
@@ -178,6 +217,7 @@ class PostService {
         caption: isLocked ? 'Unlock this post to view content' : post.caption,
         isLocked,
         hasPurchased: hasPurchased || Boolean(isOwner),
+        hasSubscriptionAccess,
         unlockGift: gift
           ? { giftId: gift.giftId, name: gift.name, emoji: gift.emoji, coinCost: gift.coinCost }
           : null,

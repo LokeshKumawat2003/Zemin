@@ -5,6 +5,7 @@ const User = require('../models/User.model');
 const Wallet = require('../models/Wallet.model');
 const Gift = require('../models/Gift.model');
 const Follower = require('../models/Follower.model');
+const Subscription = require('../models/Subscription.model');
 const AppError = require('../utils/AppError');
 const livekitService = require('./livekit.service');
 const notificationService = require('./notification.service');
@@ -320,6 +321,15 @@ class LiveService {
     const isHost = String(room.userId?._id || room.userId) === String(userId);
     const isVip = room.roomType === 'vip';
     const alreadyPaid = this.hasPaidEntry(room, userId);
+    const subscription = !isHost
+      ? await Subscription.findOne({
+          subscriberId: userId,
+          creatorUserId: room.userId._id,
+          status: 'active',
+          currentPeriodEnd: { $gt: new Date() },
+        }).populate('tierId', 'accessAllLive')
+      : null;
+    const hasSubscriptionAccess = Boolean(subscription?.tierId?.accessAllLive);
 
     if (!isHost && isVip) {
       const maxViewers = room.maxViewers ?? 1;
@@ -332,7 +342,7 @@ class LiveService {
       throw new AppError('ROOM_FULL', 400, 'This live room has reached its guest limit');
     }
 
-    if (!isHost && room.entryFeeCoins > 0 && !alreadyPaid) {
+    if (!isHost && room.entryFeeCoins > 0 && !alreadyPaid && !hasSubscriptionAccess) {
       await this.chargeEntryGift(userId, room);
     }
 
@@ -381,7 +391,8 @@ class LiveService {
             coinCost: entryGift.coinCost,
           }
         : null,
-      hasPaidEntry: isHost || this.hasPaidEntry(room, userId),
+      hasPaidEntry: isHost || alreadyPaid || hasSubscriptionAccess,
+      hasSubscriptionAccess,
     };
 
     console.log('[LiveService] joinRoom response:', {

@@ -172,6 +172,15 @@ export const userApi = {
 
 export const subscriptionApi = {
   getTiers: (username: string) => apiClient.get(`/subscription/tiers/${username}`),
+  createTier: (data: {
+    name: string;
+    price: number;
+    description?: string;
+    benefits?: string[];
+    badge?: string;
+    accessAllLive?: boolean;
+    unlockAllPosts?: boolean;
+  }) => apiClient.post('/subscription/tier/create', data),
   subscribe: (tierId: string) => apiClient.post('/subscription/create', { tierId }),
   cancel: (subscriptionId: string) => apiClient.post('/subscription/cancel', { subscriptionId }),
   mySubscriptions: () => apiClient.get('/subscription/my-subscriptions'),
