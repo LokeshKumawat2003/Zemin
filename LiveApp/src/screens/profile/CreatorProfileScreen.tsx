@@ -10,15 +10,16 @@ import {
   Image,
   useWindowDimensions,
 } from 'react-native';
+import Icon from '@react-native-vector-icons/material-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../../components/common/Button';
-import { getGiftEmoji } from '../../components/live/LiveGiftEffects';
 import { colors, typography, spacing } from '../../theme';
-import { creatorApi, feedApi, walletApi } from '../../api';
+import { creatorApi, feedApi } from '../../api';
 import { useAppSelector } from '../../redux/hooks';
 import { HomeStackParamList } from '../../navigation/HomeStack';
 import { DiscoverStackParamList } from '../../navigation/DiscoverStack';
 import { ProfileStackParamList } from '../../navigation/types';
+import { useResponsive } from '../../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<
   HomeStackParamList & DiscoverStackParamList & ProfileStackParamList,
@@ -31,29 +32,29 @@ export const CreatorProfileScreen = ({ route, navigation }: Props) => {
   const currentUser = useAppSelector((s) => s.auth.user);
   const { username } = route.params;
   const { width } = useWindowDimensions();
+  const { fs, sp, horizontalPadding } = useResponsive();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [gifts, setGifts] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<ContentTab>('posts');
   const [unlockingId, setUnlockingId] = useState<string | null>(null);
 
   const tileSize = useMemo(() => {
-    const horizontalPad = spacing.lg * 2;
-    return (width - horizontalPad - 6 * 2) / 3;
-  }, [width]);
+    const horizontalPad = horizontalPadding * 2;
+    return (width - horizontalPad - sp(6) * 2) / 3;
+  }, [width, horizontalPadding, sp]);
 
   useEffect(() => {
     (async () => {
       try {
-        const [profRes, giftRes, postsRes] = await Promise.all([
+        const [profRes, postsRes] = await Promise.all([
           creatorApi.getProfile(username),
-          walletApi.getGiftCatalog(),
           creatorApi.getPosts(username).catch(() => ({ data: [] })),
         ]);
-        setProfile(profRes.data);
-        setGifts(giftRes.data?.gifts?.slice(0, 9) || []);
-        const rawPosts = postsRes?.data || [];
+        const profileData = profRes?.data?.data || profRes?.data;
+        setProfile(profileData);
+        const postsPayload = postsRes?.data?.data || postsRes?.data;
+        const rawPosts = Array.isArray(postsPayload) ? postsPayload : postsPayload?.data || [];
         setPosts(
           rawPosts.map((post: any) => ({
             id: post._id || post.id,
@@ -117,21 +118,6 @@ export const CreatorProfileScreen = ({ route, navigation }: Props) => {
     });
   };
 
-  const sendGift = async (giftId: string, name: string) => {
-    if (!profile) return;
-    try {
-      await walletApi.sendGift({
-        giftId,
-        recipientId: profile.id,
-        quantity: 1,
-        context: { type: 'profile' },
-      });
-      Alert.alert('Gift sent!', `You sent ${name} to @${profile.username}`);
-    } catch (e: any) {
-      Alert.alert('Error', e?.error?.message || 'Could not send gift');
-    }
-  };
-
   const startChat = async () => {
     if (!profile) return;
     try {
@@ -187,57 +173,79 @@ export const CreatorProfileScreen = ({ route, navigation }: Props) => {
   const displayedPosts = activeTab === 'posts' ? posts : posts.filter((post) => post.viewCount > 0);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.banner} />
+    <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingBottom: sp(48) }]} showsVerticalScrollIndicator={false}>
+      <View style={styles.banner}>
+        {profile.avatar ? <Image source={{ uri: profile.avatar }} style={styles.bannerImage} blurRadius={6} /> : null}
+        <View style={styles.bannerOverlay} />
+      </View>
       <TouchableOpacity style={styles.avatar} onPress={profile.isLive ? openLiveRoom : undefined} activeOpacity={profile.isLive ? 0.8 : 1}>
-        <Text style={styles.avatarText}>{profile.username[0]?.toUpperCase()}</Text>
+        {profile.avatar ? (
+          <Image source={{ uri: profile.avatar }} style={styles.avatarImage} />
+        ) : (
+          <Text style={styles.avatarText}>{profile.username[0]?.toUpperCase()}</Text>
+        )}
         {profile.isLive ? <View style={styles.liveAvatarBadge}><Text style={styles.liveAvatarBadgeText}>LIVE</Text></View> : null}
       </TouchableOpacity>
 
-      <Text style={styles.name}>
-        {profile.displayName}
-        {profile.isVerified ? ' ✓' : ''}
-      </Text>
-      <Text style={styles.username}>@{profile.username}</Text>
-      {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : null}
+      <View style={styles.identityPanel}>
+        <View style={styles.nameRow}>
+          <Text style={styles.name} numberOfLines={1}>{profile.displayName}</Text>
+          {profile.isVerified ? <Icon name="verified" size={fs(18)} color={colors.primary} /> : null}
+          {profile.isLive ? <View style={styles.livePill}><View style={styles.liveDot} /><Text style={styles.livePillText}>LIVE NOW</Text></View> : null}
+        </View>
+        <Text style={styles.username}>@{profile.username}</Text>
+        {profile.bio ? <Text style={styles.bio}>{profile.bio}</Text> : <Text style={styles.bioMuted}>Creator on Zemin</Text>}
+      </View>
 
       <View style={styles.statsRow}>
         <TouchableOpacity
           onPress={() => navigation.navigate('FollowList', { username: profile.username, initialTab: 'followers' })}
           style={styles.statWrap}
         >
-          <Text style={styles.statText}>{profile.stats.followersCount} followers</Text>
+          <Text style={styles.statValue}>{profile.stats.followersCount}</Text>
+          <Text style={styles.statLabel}>Followers</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => navigation.navigate('FollowList', { username: profile.username, initialTab: 'following' })}
           style={styles.statWrap}
         >
-          <Text style={styles.statText}>{profile.stats.followingCount ?? 0} following</Text>
+          <Text style={styles.statValue}>{profile.stats.followingCount ?? 0}</Text>
+          <Text style={styles.statLabel}>Following</Text>
         </TouchableOpacity>
         <View style={styles.statWrap}>
-          <Text style={styles.statText}>{profile.stats.postsCount} posts</Text>
+          <Text style={styles.statValue}>{profile.stats.postsCount}</Text>
+          <Text style={styles.statLabel}>Posts</Text>
         </View>
       </View>
 
       {!isOwnProfile && (
         <View style={styles.actions}>
-          <Button
-            title={profile.isFollowing ? 'Following' : 'Follow'}
-            variant={profile.isFollowing ? 'outline' : 'primary'}
+          <TouchableOpacity
             onPress={toggleFollow}
-            style={styles.actionBtn}
-          />
+            style={[styles.actionBtn, profile.isFollowing ? styles.actionBtnOutline : styles.actionBtnPrimary]}
+            activeOpacity={0.82}
+          >
+            <Icon name={profile.isFollowing ? 'check' : 'person-add'} size={fs(17)} color={profile.isFollowing ? colors.primary : '#fff'} />
+            <Text style={[styles.actionBtnText, profile.isFollowing && styles.actionBtnTextOutline]}>
+              {profile.isFollowing ? 'Following' : 'Follow'}
+            </Text>
+          </TouchableOpacity>
           {profile.isLive ? (
-            <Button title="Join Live" variant="secondary" onPress={openLiveRoom} style={styles.actionBtn} />
+            <TouchableOpacity onPress={openLiveRoom} style={[styles.actionBtn, styles.actionBtnLive]} activeOpacity={0.82}>
+              <Icon name="live-tv" size={fs(17)} color="#fff" />
+              <Text style={styles.actionBtnText}>Join Live</Text>
+            </TouchableOpacity>
           ) : (
-            <Button title="Message" variant="secondary" onPress={startChat} style={styles.actionBtn} />
+            <TouchableOpacity onPress={startChat} style={[styles.actionBtn, styles.actionBtnSecondary]} activeOpacity={0.82}>
+              <Icon name="chat-bubble-outline" size={fs(17)} color={colors.textPrimary} />
+              <Text style={styles.actionBtnTextDark}>Message</Text>
+            </TouchableOpacity>
           )}
         </View>
       )}
 
       {!isOwnProfile && (
-        <Button
-          title="Subscribe"
+        <TouchableOpacity
           onPress={() =>
             navigation.navigate('SubscriptionTiers', {
               username: profile.username,
@@ -245,15 +253,22 @@ export const CreatorProfileScreen = ({ route, navigation }: Props) => {
             })
           }
           style={styles.subscribeBtn}
-        />
+          activeOpacity={0.82}
+        >
+          <Icon name="star" size={fs(18)} color="#fff" />
+          <Text style={styles.subscribeText}>Subscribe</Text>
+          <Icon name="arrow-forward" size={fs(17)} color="#fff" />
+        </TouchableOpacity>
       )}
 
       <View style={styles.tabsRow}>
         <TouchableOpacity onPress={() => setActiveTab('posts')} style={styles.tabBtn}>
-          <Text style={[styles.tab, activeTab === 'posts' && styles.tabActive]}>Posts</Text>
+            <Icon name="grid-on" size={fs(17)} color={activeTab === 'posts' ? colors.primary : colors.textSecondary} />
+            <Text style={[styles.tab, activeTab === 'posts' && styles.tabActive]}>Posts</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => setActiveTab('highlights')} style={styles.tabBtn}>
-          <Text style={[styles.tab, activeTab === 'highlights' && styles.tabActive]}>Highlights</Text>
+            <Icon name="auto-awesome" size={fs(17)} color={activeTab === 'highlights' ? colors.primary : colors.textSecondary} />
+            <Text style={[styles.tab, activeTab === 'highlights' && styles.tabActive]}>Highlights</Text>
         </TouchableOpacity>
       </View>
 
@@ -278,38 +293,31 @@ export const CreatorProfileScreen = ({ route, navigation }: Props) => {
                 <Image source={{ uri: item.thumbnail }} style={styles.gridImage} />
               ) : (
                 <View style={[styles.gridImage, styles.gridPlaceholder]}>
-                  <Text style={styles.gridPlaceholderIcon}>{item.type === 'video' ? '🎬' : '📷'}</Text>
+                  <Icon name={item.type === 'video' ? 'videocam' : 'image'} size={30} color={colors.textSecondary} />
                 </View>
               )}
               {item.isLocked ? (
                 <View style={styles.lockOverlay}>
-                  <Text style={styles.lockIcon}>🔒</Text>
+                  <Icon name="lock" size={24} color="#fff" />
                   <Text style={styles.lockText}>{unlockingId === item.id ? 'Unlocking...' : `${item.ppvPrice} coins`}</Text>
                 </View>
               ) : null}
               <View style={styles.gridOverlay}>
-                <Text style={styles.gridViewText}>▶ {item.viewCount}</Text>
+                <View style={styles.gridViewRow}>
+                  <Icon name="play-arrow" size={14} color="#fff" />
+                  <Text style={styles.gridViewText}>{item.viewCount}</Text>
+                </View>
               </View>
             </TouchableOpacity>
           ))}
         </View>
       ) : (
         <View style={styles.emptyWrap}>
-          <Text style={styles.emptyIcon}>📷</Text>
+          <Icon name="photo-library" size={42} color={colors.textSecondary} style={styles.emptyIcon} />
           <Text style={styles.emptyTitle}>No posts yet</Text>
         </View>
       )}
 
-      <Text style={styles.section}>Send a Gift</Text>
-      <View style={styles.giftRow}>
-        {gifts.map((g) => (
-          <TouchableOpacity key={g.giftId} style={styles.giftItem} onPress={() => sendGift(g.giftId, g.name)}>
-            <Text style={styles.giftEmoji}>{getGiftEmoji(g.giftId, g.name, g.emoji)}</Text>
-            <Text style={styles.giftName}>{g.name}</Text>
-            <Text style={styles.giftCost}>{g.coinCost}</Text>
-          </TouchableOpacity>
-        ))}
-      </View>
     </ScrollView>
   );
 };
@@ -318,24 +326,27 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: colors.background },
   content: { paddingBottom: spacing.xxl },
   center: { flex: 1, backgroundColor: colors.background, alignItems: 'center', justifyContent: 'center' },
-  banner: { height: 120, backgroundColor: colors.secondary },
+  banner: { height: 150, backgroundColor: colors.secondary, overflow: 'hidden' },
+  bannerImage: { width: '100%', height: '100%', resizeMode: 'cover' },
+  bannerOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(13,11,16,0.48)' },
   avatar: {
     width: 88,
     height: 88,
     borderRadius: 44,
-    backgroundColor: colors.primary,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
     marginTop: -44,
     marginLeft: spacing.lg,
-    borderWidth: 4,
+    borderWidth: 5,
     borderColor: colors.background,
     position: 'relative',
   },
-  avatarText: { fontSize: 32, fontWeight: '800', color: '#fff' },
+  avatarImage: { width: '100%', height: '100%', borderRadius: 44 },
+  avatarText: { fontSize: 32, fontWeight: '900', color: '#fff' },
   liveAvatarBadge: {
     position: 'absolute',
-    bottom: 4,
+    bottom: 5,
     right: -2,
     backgroundColor: colors.live,
     paddingHorizontal: 8,
@@ -343,35 +354,49 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   liveAvatarBadgeText: { color: '#fff', fontSize: 10, fontWeight: '700' },
-  name: { ...typography.h2, color: colors.textPrimary, marginTop: spacing.md, marginLeft: spacing.lg },
-  username: { ...typography.body, color: colors.textSecondary, marginLeft: spacing.lg },
-  bio: { ...typography.bodySmall, color: colors.textSecondary, margin: spacing.lg },
-  statsRow: { flexDirection: 'row', gap: spacing.lg, marginHorizontal: spacing.lg, marginBottom: spacing.md },
-  statWrap: { alignItems: 'center' },
-  statText: { ...typography.bodySmall, color: colors.textPrimary },
-  actions: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
-  actionBtn: { flex: 1 },
-  subscribeBtn: { marginHorizontal: spacing.lg, marginBottom: spacing.lg },
+  identityPanel: { marginHorizontal: spacing.lg, marginTop: spacing.sm, marginBottom: spacing.sm },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
+  name: { ...typography.h2, color: colors.textPrimary, flexShrink: 1 },
+  username: { ...typography.body, color: colors.textSecondary, marginTop: 3 },
+  bio: { ...typography.bodySmall, color: colors.textPrimary, lineHeight: 20, marginTop: spacing.sm },
+  bioMuted: { ...typography.bodySmall, color: colors.textSecondary, marginTop: spacing.sm },
+  livePill: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,47,110,0.16)', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: colors.primary, marginRight: 4 },
+  livePillText: { color: colors.primary, fontSize: 9, fontWeight: '800' },
+  statsRow: { flexDirection: 'row', marginHorizontal: spacing.lg, marginBottom: spacing.sm, backgroundColor: colors.surface, borderRadius: 15, borderWidth: 1, borderColor: colors.border, paddingVertical: spacing.sm },
+  statWrap: { flex: 1, alignItems: 'center', borderRightWidth: 1, borderRightColor: colors.border },
+  statWrapLast: { borderRightWidth: 0 },
+  statValue: { color: colors.textPrimary, fontSize: 16, fontWeight: '800' },
+  statLabel: { color: colors.textSecondary, fontSize: 11, marginTop: 3 },
+  actions: { flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.sm },
+  actionBtn: { flex: 1, minHeight: 42, borderRadius: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingHorizontal: spacing.sm },
+  actionBtnPrimary: { backgroundColor: colors.primary },
+  actionBtnOutline: { backgroundColor: 'transparent', borderWidth: 1, borderColor: colors.primary },
+  actionBtnLive: { backgroundColor: colors.primary },
+  actionBtnSecondary: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  actionBtnText: { color: '#fff', fontSize: 14, fontWeight: '800' },
+  actionBtnTextOutline: { color: colors.primary },
+  actionBtnTextDark: { color: colors.textPrimary, fontSize: 14, fontWeight: '800' },
+  subscribeBtn: { marginHorizontal: spacing.lg, marginBottom: spacing.md, minHeight: 44, borderRadius: 13, backgroundColor: '#7c3aed', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7 },
+  subscribeText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   tabsRow: {
     flexDirection: 'row',
     paddingHorizontal: spacing.lg,
+    marginTop: spacing.sm,
     marginBottom: spacing.md,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
-    gap: spacing.lg,
+    gap: spacing.sm,
   },
-  tabBtn: { paddingBottom: spacing.sm },
+  tabBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.sm },
   tab: { color: colors.textSecondary, fontSize: 14, fontWeight: '600' },
   tabActive: {
     color: colors.primary,
     fontWeight: '800',
-    borderBottomWidth: 2,
-    borderBottomColor: colors.primary,
-    paddingBottom: spacing.sm - 2,
   },
   grid: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
   gridItem: {
-    borderRadius: 10,
+    borderRadius: 14,
     overflow: 'hidden',
     backgroundColor: colors.surface,
   },
@@ -402,22 +427,9 @@ const styles = StyleSheet.create({
   lockIcon: { fontSize: 24, marginBottom: 4 },
   lockText: { color: '#fff', fontSize: 12, fontWeight: '700', textAlign: 'center' },
   gridViewText: { color: '#fff', fontSize: 11, fontWeight: '600' },
+  gridViewRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
   emptyWrap: { alignItems: 'center', paddingVertical: 24, paddingHorizontal: spacing.lg },
-  emptyIcon: { fontSize: 32, opacity: 0.6, marginBottom: 6 },
+  emptyIcon: { opacity: 0.6, marginBottom: 6 },
   emptyTitle: { color: colors.textSecondary, fontSize: 13 },
-  section: { ...typography.h3, color: colors.textPrimary, marginHorizontal: spacing.lg, marginBottom: spacing.sm },
-  giftRow: { flexDirection: 'row', flexWrap: 'wrap', paddingHorizontal: spacing.lg, gap: spacing.sm },
-  giftItem: {
-    width: '22%',
-    backgroundColor: colors.surface,
-    borderRadius: 12,
-    padding: spacing.sm,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  giftEmoji: { fontSize: 24 },
-  giftName: { ...typography.caption, color: colors.textPrimary, marginTop: 4 },
-  giftCost: { ...typography.caption, color: colors.accent },
   empty: { ...typography.body, color: colors.textSecondary },
 });
