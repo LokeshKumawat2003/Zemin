@@ -12,9 +12,8 @@ import {
 } from 'react-native';
 import Icon from '@react-native-vector-icons/material-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { Button } from '../../components/common/Button';
 import { colors, typography, spacing } from '../../theme';
-import { creatorApi, feedApi } from '../../api';
+import { creatorApi, feedApi, unwrapApiResponse } from '../../api';
 import { useAppSelector } from '../../redux/hooks';
 import { HomeStackParamList } from '../../navigation/HomeStack';
 import { DiscoverStackParamList } from '../../navigation/DiscoverStack';
@@ -93,9 +92,8 @@ export const CreatorProfileScreen = ({ route, navigation }: Props) => {
     if (post.isLocked) {
       try {
         setUnlockingId(post.id);
-        const res = await feedApi.purchasePpv(post.id);
-        const purchased = (res as any)?.data?.purchased ?? (res as any)?.purchased ?? false;
-        if (purchased) {
+        const result = unwrapApiResponse<any>(await feedApi.purchasePpv(post.id));
+        if (result?.purchased) {
           setPosts((prev) => prev.map((item) => (item.id === post.id ? { ...item, isLocked: false } : item)));
           Alert.alert('Unlocked!', 'You can now view this post.');
           navigation.getParent()?.navigate('Home', {
