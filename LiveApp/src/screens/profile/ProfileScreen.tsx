@@ -332,24 +332,32 @@ export const ProfileScreen = ({ navigation }: Props) => {
             </View>
             {subscriptionPlans.length === 0 ? (
               <Text style={styles.noPlans}>No plans yet. Create your first plan.</Text>
-            ) : subscriptionPlans.map((plan) => (
-              <View key={plan.id} style={styles.planCard}>
-                <View style={styles.planCopy}>
-                  <Text style={styles.planName}>{plan.name}</Text>
-                  <Text style={styles.planPrice}>${Number(plan.price).toFixed(2)} / month</Text>
-                  {plan.description ? <Text style={styles.planDescription}>{plan.description}</Text> : null}
-                  {plan.accessAllLive ? <Text style={styles.planBenefit}>All live access</Text> : null}
-                  {plan.unlockAllPosts ? <Text style={styles.planBenefit}>All posts unlocked</Text> : null}
-                </View>
-                <TouchableOpacity
-                  style={styles.editPlanBtn}
-                  onPress={() => navigation.navigate('CreateSubscriptionTier', { tier: plan })}
-                >
-                  <Icon name="edit" size={fs(17)} color={colors.primary} />
-                  <Text style={styles.editPlanText}>Edit</Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+            ) : (
+              <ScrollView
+                style={styles.plansScroll}
+                nestedScrollEnabled
+                showsVerticalScrollIndicator={subscriptionPlans.length > 3}
+              >
+                {subscriptionPlans.map((plan) => (
+                  <View key={plan.id} style={styles.planCard}>
+                    <View style={styles.planCopy}>
+                      <Text style={styles.planName}>{plan.name}</Text>
+                      <Text style={styles.planPrice}>${Number(plan.price).toFixed(2)} / month</Text>
+                      {plan.description ? <Text style={styles.planDescription}>{plan.description}</Text> : null}
+                      {plan.accessAllLive ? <Text style={styles.planBenefit}>All live access</Text> : null}
+                      {plan.unlockAllPosts ? <Text style={styles.planBenefit}>All posts unlocked</Text> : null}
+                    </View>
+                    <TouchableOpacity
+                      style={styles.editPlanBtn}
+                      onPress={() => navigation.navigate('CreateSubscriptionTier', { tier: plan })}
+                    >
+                      <Icon name="edit" size={fs(17)} color={colors.primary} />
+                      <Text style={styles.editPlanText}>Edit</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))}
+              </ScrollView>
+            )}
           </View>
         ) : null}
 
@@ -587,6 +595,7 @@ const styles = StyleSheet.create({
   addPlanBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderColor: colors.primary, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6 },
   addPlanText: { color: colors.primary, fontSize: 12, fontWeight: '800' },
   noPlans: { color: colors.textSecondary, fontSize: 13, paddingVertical: spacing.sm },
+  plansScroll: { maxHeight: 300 },
   planCard: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.sm },
   planCopy: { flex: 1, paddingRight: spacing.sm },
   planName: { color: colors.text, fontSize: 15, fontWeight: '800' },
