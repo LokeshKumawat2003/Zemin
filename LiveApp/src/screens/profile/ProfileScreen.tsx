@@ -18,7 +18,7 @@ import { spacing } from '../../theme';
 import { useResponsive } from '../../hooks/useResponsive';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { bootstrapAuth } from '../../redux/slices/authSlice';
-import { creatorApi, userApi, walletApi } from '../../api';
+import { creatorApi, subscriptionApi, unwrapApiResponse, userApi, walletApi } from '../../api';
 import { ProfileStackParamList } from '../../navigation/types';
 import { useSidebar } from '../../contexts/SidebarContext';
 
@@ -83,6 +83,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
   const [walletBalance, setWalletBalance] = useState(user?.walletBalance ?? 0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [subscriptionPlans, setSubscriptionPlans] = useState<any[]>([]);
 
   const gridCols = width >= 768 ? 4 : GRID_COLS;
   const avatarSize = width < 360 ? sp(82) : sp(96);
@@ -105,10 +106,11 @@ export const ProfileScreen = ({ navigation }: Props) => {
     }
 
     try {
-      const [profileRes, postsRes, balanceRes] = await Promise.all([
+      const [profileRes, postsRes, balanceRes, plansRes] = await Promise.all([
         creatorApi.getProfile(user.username).catch(() => null),
         userApi.getPosts().catch(() => ({ data: [] })),
         walletApi.getBalance().catch(() => null),
+        user?.isCreator ? subscriptionApi.getTiers(user.username).catch(() => null) : Promise.resolve(null),
       ]);
 
       if (profileRes?.data?.stats) {
@@ -133,11 +135,13 @@ export const ProfileScreen = ({ navigation }: Props) => {
         setCoinBalance(balanceRes.data.coinBalance ?? 0);
         setWalletBalance(balanceRes.data.walletBalance ?? 0);
       }
+      const plans = plansRes ? unwrapApiResponse<any[]>(plansRes) : [];
+      setSubscriptionPlans(Array.isArray(plans) ? plans : []);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [user?.username]);
+  }, [user?.isCreator, user?.username]);
 
   useFocusEffect(
     useCallback(() => {
@@ -311,6 +315,44 @@ export const ProfileScreen = ({ navigation }: Props) => {
           </View>
         </View>
 
+        {user?.isCreator ? (
+          <View style={styles.plansSection}>
+            <View style={styles.plansHeader}>
+              <View>
+                <Text style={styles.plansTitle}>Subscription plans</Text>
+                <Text style={styles.plansSubtitle}>One-time payment, one month of access</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.addPlanBtn}
+                onPress={() => navigation.navigate('CreateSubscriptionTier')}
+              >
+                <Icon name="add" size={fs(18)} color={colors.primary} />
+                <Text style={styles.addPlanText}>Add</Text>
+              </TouchableOpacity>
+            </View>
+            {subscriptionPlans.length === 0 ? (
+              <Text style={styles.noPlans}>No plans yet. Create your first plan.</Text>
+            ) : subscriptionPlans.map((plan) => (
+              <View key={plan.id} style={styles.planCard}>
+                <View style={styles.planCopy}>
+                  <Text style={styles.planName}>{plan.name}</Text>
+                  <Text style={styles.planPrice}>${Number(plan.price).toFixed(2)} / month</Text>
+                  {plan.description ? <Text style={styles.planDescription}>{plan.description}</Text> : null}
+                  {plan.accessAllLive ? <Text style={styles.planBenefit}>All live access</Text> : null}
+                  {plan.unlockAllPosts ? <Text style={styles.planBenefit}>All posts unlocked</Text> : null}
+                </View>
+                <TouchableOpacity
+                  style={styles.editPlanBtn}
+                  onPress={() => navigation.navigate('CreateSubscriptionTier', { tier: plan })}
+                >
+                  <Icon name="edit" size={fs(17)} color={colors.primary} />
+                  <Text style={styles.editPlanText}>Edit</Text>
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
         {/* Balance cards */}
         <View style={styles.balanceRow}>
           <TouchableOpacity
@@ -464,6 +506,7 @@ const styles = StyleSheet.create({
   headerBlock: {
     marginTop: -52,
     paddingHorizontal: spacing.md,
+    paddingBottom: spacing.md,
   },
   avatarRow: {
     flexDirection: 'row',
@@ -537,6 +580,21 @@ const styles = StyleSheet.create({
   quickActionIcon: { fontSize: 14 },
   quickActionText: { color: colors.text, fontSize: 12, fontWeight: '600' },
   quickActionTextPrimary: { color: colors.primary },
+  plansSection: { marginHorizontal: spacing.md, marginBottom: spacing.md, backgroundColor: colors.surface, borderRadius: 16, borderWidth: 1, borderColor: colors.border, padding: spacing.md },
+  plansHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm },
+  plansTitle: { color: colors.text, fontSize: 17, fontWeight: '800' },
+  plansSubtitle: { color: colors.textSecondary, fontSize: 11, marginTop: 3 },
+  addPlanBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderColor: colors.primary, borderRadius: 10, paddingHorizontal: 9, paddingVertical: 6 },
+  addPlanText: { color: colors.primary, fontSize: 12, fontWeight: '800' },
+  noPlans: { color: colors.textSecondary, fontSize: 13, paddingVertical: spacing.sm },
+  planCard: { flexDirection: 'row', alignItems: 'center', borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.sm, marginTop: spacing.sm },
+  planCopy: { flex: 1, paddingRight: spacing.sm },
+  planName: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  planPrice: { color: colors.gold, fontSize: 13, fontWeight: '700', marginTop: 2 },
+  planDescription: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },
+  planBenefit: { color: colors.primary, fontSize: 11, fontWeight: '700', marginTop: 4 },
+  editPlanBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, padding: 8 },
+  editPlanText: { color: colors.primary, fontSize: 12, fontWeight: '800' },
 
   balanceRow: {
     flexDirection: 'row',

@@ -14,14 +14,16 @@ type Props = NativeStackScreenProps<
   'CreateSubscriptionTier'
 >;
 
-export const CreateSubscriptionTierScreen = ({ navigation }: Props) => {
-  const [name, setName] = useState('');
-  const [price, setPrice] = useState('');
-  const [description, setDescription] = useState('');
-  const [benefits, setBenefits] = useState('');
-  const [badge, setBadge] = useState('');
-  const [accessAllLive, setAccessAllLive] = useState(false);
-  const [unlockAllPosts, setUnlockAllPosts] = useState(false);
+export const CreateSubscriptionTierScreen = ({ navigation, route }: Props) => {
+  const tier = route.params?.tier;
+  const isEditing = Boolean(tier?.id);
+  const [name, setName] = useState(tier?.name || '');
+  const [price, setPrice] = useState(tier?.price ? String(tier.price) : '');
+  const [description, setDescription] = useState(tier?.description || '');
+  const [benefits, setBenefits] = useState((tier?.benefits || []).join(', '));
+  const [badge, setBadge] = useState(tier?.badge || '');
+  const [accessAllLive, setAccessAllLive] = useState(Boolean(tier?.accessAllLive));
+  const [unlockAllPosts, setUnlockAllPosts] = useState(Boolean(tier?.unlockAllPosts));
   const [saving, setSaving] = useState(false);
 
   const createTier = async () => {
@@ -33,16 +35,18 @@ export const CreateSubscriptionTierScreen = ({ navigation }: Props) => {
 
     setSaving(true);
     try {
-      await subscriptionApi.createTier({
+      const payload = {
         name: name.trim(),
         price: numericPrice,
         description: description.trim() || undefined,
-        benefits: benefits.split(',').map((item) => item.trim()).filter(Boolean),
+        benefits: benefits.split(',').map((item: string) => item.trim()).filter(Boolean),
         badge: badge.trim() || undefined,
         accessAllLive,
         unlockAllPosts,
-      });
-      Alert.alert('Plan created', 'Your subscription plan is now available on your profile.', [
+      };
+      if (isEditing) await subscriptionApi.updateTier(tier.id, payload);
+      else await subscriptionApi.createTier(payload);
+      Alert.alert(isEditing ? 'Plan updated' : 'Plan created', isEditing ? 'Your subscription plan was updated.' : 'Your subscription plan is now available on your profile.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
     } catch (e: any) {
@@ -54,7 +58,7 @@ export const CreateSubscriptionTierScreen = ({ navigation }: Props) => {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-      <Text style={styles.title}>Create a subscription plan</Text>
+      <Text style={styles.title}>{isEditing ? 'Edit subscription plan' : 'Create a subscription plan'}</Text>
       <Text style={styles.subtitle}>One payment gives access for one month. There is no automatic renewal.</Text>
 
       <View style={styles.form}>
@@ -98,7 +102,7 @@ export const CreateSubscriptionTierScreen = ({ navigation }: Props) => {
           </View>
           <Switch value={unlockAllPosts} onValueChange={setUnlockAllPosts} trackColor={{ false: colors.border, true: colors.primary }} />
         </View>
-        <Button title="Create subscription plan" onPress={createTier} loading={saving} style={styles.button} />
+        <Button title={isEditing ? 'Save changes' : 'Create subscription plan'} onPress={createTier} loading={saving} style={styles.button} />
       </View>
     </ScrollView>
   );

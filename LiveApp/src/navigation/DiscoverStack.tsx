@@ -14,7 +14,7 @@ export type DiscoverStackParamList = {
   CreatorProfile: { username: string };
   FollowList: { username: string; initialTab?: 'followers' | 'following' };
   SubscriptionTiers: { username: string; creatorId: string };
-  CreateSubscriptionTier: undefined;
+  CreateSubscriptionTier: { tier?: any } | undefined;
   LiveViewer: {
     roomId: string;
     title: string;

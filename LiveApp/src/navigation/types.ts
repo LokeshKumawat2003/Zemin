@@ -14,7 +14,7 @@ export type ProfileStackParamList = {
   Subscriptions: undefined;
   GiftCatalog: undefined;
   SubscriptionTiers: { username: string; creatorId: string };
-  CreateSubscriptionTier: undefined;
+  CreateSubscriptionTier: { tier?: any } | undefined;
   CreatorProfile: { username: string };
   FollowList: { username: string; initialTab?: 'followers' | 'following' };
 };

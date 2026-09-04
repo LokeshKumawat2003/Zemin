@@ -23,6 +23,15 @@ exports.createTier = async (req, res, next) => {
   }
 };
 
+exports.updateTier = async (req, res, next) => {
+  try {
+    const data = await subscriptionService.updateTier(req.user._id, req.params.tierId, req.body);
+    success(res, data, 'Subscription plan updated');
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.subscribe = async (req, res, next) => {
   try {
     const data = await subscriptionService.subscribe(req.user._id, req.body.tierId);

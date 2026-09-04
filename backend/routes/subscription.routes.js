@@ -7,6 +7,7 @@ const router = express.Router();
 
 router.get('/tiers/:username', subscriptionController.getTiers);
 router.post('/tier/create', authenticate, authorize('creator', 'admin'), subscriptionController.createTier);
+router.put('/tier/:tierId', authenticate, authorize('creator', 'admin'), subscriptionController.updateTier);
 router.post('/create', authenticate, subscriptionController.subscribe);
 router.post('/cancel', authenticate, subscriptionController.cancel);
 router.get('/my-subscriptions', authenticate, subscriptionController.mySubscriptions);

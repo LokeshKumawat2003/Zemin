@@ -22,7 +22,7 @@ export type HomeStackParamList = {
   FollowList: { username: string; initialTab?: 'followers' | 'following' };
   Notifications: undefined;
   SubscriptionTiers: { username: string; creatorId: string };
-  CreateSubscriptionTier: undefined;
+  CreateSubscriptionTier: { tier?: any } | undefined;
   Report: { targetType: 'user' | 'post' | 'live' | 'message'; targetId: string };
   LiveViewer: {
     roomId: string;

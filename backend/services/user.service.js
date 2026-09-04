@@ -108,6 +108,34 @@ class SubscriptionService {
     return { id: tier._id.toString(), name: tier.name, price: tier.price / 100 };
   }
 
+  async updateTier(userId, tierId, data) {
+    const creator = await Creator.findOne({ userId });
+    if (!creator) throw new AppError('FORBIDDEN', 403, 'Creator account required');
+
+    const tier = await SubscriptionTier.findOne({ _id: tierId, creatorId: creator._id, isActive: true });
+    if (!tier) throw new AppError('NOT_FOUND', 404, 'Subscription plan not found');
+
+    if (data.name !== undefined) tier.name = String(data.name).trim();
+    if (data.price !== undefined) tier.price = Math.round(Number(data.price) * 100);
+    if (data.description !== undefined) tier.description = data.description;
+    if (data.benefits !== undefined) tier.benefits = Array.isArray(data.benefits) ? data.benefits : [];
+    if (data.badge !== undefined) tier.badge = data.badge;
+    if (data.accessAllLive !== undefined) tier.accessAllLive = data.accessAllLive === true;
+    if (data.unlockAllPosts !== undefined) tier.unlockAllPosts = data.unlockAllPosts === true;
+    await tier.save();
+
+    return {
+      id: tier._id.toString(),
+      name: tier.name,
+      price: tier.price / 100,
+      description: tier.description,
+      benefits: tier.benefits,
+      badge: tier.badge,
+      accessAllLive: tier.accessAllLive,
+      unlockAllPosts: tier.unlockAllPosts,
+    };
+  }
+
   async subscribe(subscriberId, tierId) {
     const tier = await SubscriptionTier.findById(tierId);
     if (!tier || !tier.isActive) throw new AppError('NOT_FOUND', 404, 'Tier not found');

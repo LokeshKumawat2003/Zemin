@@ -181,6 +181,7 @@ export const subscriptionApi = {
     accessAllLive?: boolean;
     unlockAllPosts?: boolean;
   }) => apiClient.post('/subscription/tier/create', data),
+  updateTier: (tierId: string, data: object) => apiClient.put(`/subscription/tier/${tierId}`, data),
   subscribe: (tierId: string) => apiClient.post('/subscription/create', { tierId }),
   cancel: (subscriptionId: string) => apiClient.post('/subscription/cancel', { subscriptionId }),
   mySubscriptions: () => apiClient.get('/subscription/my-subscriptions'),
