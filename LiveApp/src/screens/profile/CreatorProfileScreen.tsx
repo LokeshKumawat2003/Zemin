@@ -64,7 +64,8 @@ export const CreatorProfileScreen = ({ route, navigation }: Props) => {
             caption: post.caption,
             isPPV: post.isPPV || post.visibility === 'ppv',
             ppvPrice: post.ppvPrice ?? 0,
-            isLocked: post.isLocked ?? post.isPPV ?? post.visibility === 'ppv',
+            isLocked: Boolean(post.isLocked),
+            unlockGift: post.unlockGift,
             media: post.media || [],
           }))
         );
@@ -299,7 +300,11 @@ export const CreatorProfileScreen = ({ route, navigation }: Props) => {
               {item.isLocked ? (
                 <View style={styles.lockOverlay}>
                   <Icon name="lock" size={24} color="#fff" />
-                  <Text style={styles.lockText}>{unlockingId === item.id ? 'Unlocking...' : `${item.ppvPrice} coins`}</Text>
+                  <Text style={styles.lockText}>
+                    {unlockingId === item.id
+                      ? 'Unlocking...'
+                      : `${item.unlockGift?.emoji || '🎁'} ${item.unlockGift?.name || 'Send gift'}${item.unlockGift?.coinCost ? ` · ${item.unlockGift.coinCost}` : ''}`}
+                  </Text>
                 </View>
               ) : null}
               <View style={styles.gridOverlay}>

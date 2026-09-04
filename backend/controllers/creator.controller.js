@@ -1,4 +1,5 @@
 const { followService, creatorService } = require('../services/social.service');
+const { postService } = require('../services/post.service');
 const { success } = require('../utils/response.util');
 const Post = require('../models/Post.model');
 const { getPagination } = require('../utils/pagination.util');
@@ -66,9 +67,9 @@ exports.getCreatorPosts = async (req, res, next) => {
   try {
     const user = await creatorService.getByUsername(req.params.username);
     const { page, limit, skip } = getPagination(req.query);
-    const filter = { userId: user.id, isDeleted: false, visibility: 'public' };
+    const filter = { userId: user.id, isDeleted: false, visibility: { $in: ['public', 'ppv'] } };
     const [posts, total] = await Promise.all([
-      Post.find(filter).sort({ publishedAt: -1 }).skip(skip).limit(limit),
+      postService.getCreatorPosts(req.user?._id, user.id, { skip, limit }),
       Post.countDocuments(filter),
     ]);
     paginated(res, posts, page, limit, total);

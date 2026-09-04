@@ -143,6 +143,48 @@ class PostService {
     return { purchased: true, postId: post._id.toString(), coinCost, remainingBalance: wallet.coinBalance };
   }
 
+  async getCreatorPosts(userId, creatorUserId, { skip, limit }) {
+    const posts = await Post.find({
+      userId: creatorUserId,
+      isDeleted: false,
+      visibility: { $in: ['public', 'ppv'] },
+    })
+      .sort({ publishedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const ppvPosts = posts.filter((post) => post.isPPV);
+    const purchases = userId && ppvPosts.length
+      ? await PpvPurchase.find({ userId, postId: { $in: ppvPosts.map((post) => post._id) } }).select('postId').lean()
+      : [];
+    const purchasedIds = new Set(purchases.map((purchase) => purchase.postId.toString()));
+    const giftIds = ppvPosts.map((post) => post.unlockGiftId).filter(Boolean);
+    const gifts = giftIds.length
+      ? await Gift.find({ giftId: { $in: giftIds }, isActive: true }).lean()
+      : [];
+    const giftMap = new Map(gifts.map((gift) => [gift.giftId, gift]));
+
+    return posts.map((post) => {
+      const isOwner = userId && post.userId.toString() === userId.toString();
+      const hasPurchased = purchasedIds.has(post._id.toString());
+      const isLocked = post.isPPV && !isOwner && !hasPurchased;
+      const gift = post.unlockGiftId ? giftMap.get(post.unlockGiftId) : null;
+
+      return {
+        ...post,
+        id: post._id.toString(),
+        media: isLocked ? [] : post.media,
+        caption: isLocked ? 'Unlock this post to view content' : post.caption,
+        isLocked,
+        hasPurchased: hasPurchased || Boolean(isOwner),
+        unlockGift: gift
+          ? { giftId: gift.giftId, name: gift.name, emoji: gift.emoji, coinCost: gift.coinCost }
+          : null,
+      };
+    });
+  }
+
   async unlockWithGift(userId, post) {
     const existing = await PpvPurchase.findOne({ userId, postId: post._id });
     if (existing) return { purchased: true, postId: post._id.toString(), giftId: post.unlockGiftId };
