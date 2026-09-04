@@ -17,7 +17,7 @@ import { ScreenContainer } from '../../components/common/ScreenContainer';
 
 type Props = NativeStackScreenProps<ProfileStackParamList, 'Settings'>;
 
-export const SettingsScreen = ({ navigation }: Props) => {
+export const SettingsScreen = (_props: Props) => {
   const dispatch = useAppDispatch();
   const user = useAppSelector((s) => s.auth.user);
   const { fs, sp } = useResponsive();
@@ -123,7 +123,6 @@ export const SettingsScreen = ({ navigation }: Props) => {
       </View>
       </View>
 
-      <Button title="My Subscriptions" variant="outline" onPress={() => navigation.navigate('Subscriptions')} style={styles.btn} />
       <Button title="Save Changes" onPress={save} loading={saving} style={styles.saveBtn} />
     </ScrollView>
     </ScreenContainer>

@@ -285,14 +285,14 @@ export const ProfileScreen = ({ navigation }: Props) => {
               <Icon name="card-giftcard" size={fs(17)} color={colors.primary} />
               <Text style={styles.quickActionText}>Gifts</Text>
             </TouchableOpacity>
-            <TouchableOpacity
+            {/* <TouchableOpacity
               style={styles.quickActionBtn}
               onPress={() => navigation.navigate('Settings')}
             >
               <Icon name="settings" size={fs(17)} color={colors.primary} />
               <Text style={styles.quickActionText}>Settings</Text>
-            </TouchableOpacity>
-            {user?.isCreator && (
+            </TouchableOpacity> */}
+            {/* {user?.isCreator && (
               <TouchableOpacity
                 style={[styles.quickActionBtn, styles.quickActionPrimary]}
                 onPress={() => navigation.navigate('CreateSubscriptionTier')}
@@ -300,7 +300,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
                 <Icon name="add-circle-outline" size={fs(17)} color={colors.primary} />
                 <Text style={[styles.quickActionText, styles.quickActionTextPrimary]}>Create Plan</Text>
               </TouchableOpacity>
-            )}
+            )} */}
             {user?.isCreator && (
               <TouchableOpacity
                 style={[styles.quickActionBtn, styles.quickActionPrimary]}
@@ -314,7 +314,26 @@ export const ProfileScreen = ({ navigation }: Props) => {
             )}
           </View>
         </View>
-
+  <View style={styles.balanceRow}>
+          <TouchableOpacity
+            style={styles.balanceCard}
+            onPress={() => navigation.navigate('Wallet')}
+            activeOpacity={0.85}
+          >
+            <Icon name="monetization-on" size={fs(25)} color={colors.gold} style={styles.balanceIcon} />
+            <Text style={styles.balanceLabel}>Coins</Text>
+            <Text style={styles.balanceValue}>{coinBalance.toLocaleString()}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.balanceCard, styles.balanceCardAlt]}
+            onPress={() => navigation.navigate('Wallet')}
+            activeOpacity={0.85}
+          >
+            <Icon name="diamond" size={fs(25)} color="#9edcff" style={styles.balanceIcon} />
+            <Text style={styles.balanceLabel}>Wallet</Text>
+            <Text style={styles.balanceValue}>{walletBalance.toLocaleString()}</Text>
+          </TouchableOpacity>
+        </View>
         {user?.isCreator ? (
           <View style={styles.plansSection}>
             <View style={styles.plansHeader}>
@@ -362,26 +381,7 @@ export const ProfileScreen = ({ navigation }: Props) => {
         ) : null}
 
         {/* Balance cards */}
-        <View style={styles.balanceRow}>
-          <TouchableOpacity
-            style={styles.balanceCard}
-            onPress={() => navigation.navigate('Wallet')}
-            activeOpacity={0.85}
-          >
-            <Icon name="monetization-on" size={fs(25)} color={colors.gold} style={styles.balanceIcon} />
-            <Text style={styles.balanceLabel}>Coins</Text>
-            <Text style={styles.balanceValue}>{coinBalance.toLocaleString()}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={[styles.balanceCard, styles.balanceCardAlt]}
-            onPress={() => navigation.navigate('Wallet')}
-            activeOpacity={0.85}
-          >
-            <Icon name="diamond" size={fs(25)} color="#9edcff" style={styles.balanceIcon} />
-            <Text style={styles.balanceLabel}>Wallet</Text>
-            <Text style={styles.balanceValue}>{walletBalance.toLocaleString()}</Text>
-          </TouchableOpacity>
-        </View>
+      
 
         {/* Become creator CTA */}
         {!user?.isCreator && (
@@ -514,7 +514,7 @@ const styles = StyleSheet.create({
   headerBlock: {
     marginTop: -52,
     paddingHorizontal: spacing.md,
-    paddingBottom: spacing.md,
+    // paddingBottom: spacing.md,
   },
   avatarRow: {
     flexDirection: 'row',
@@ -610,6 +610,7 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: spacing.md,
     marginTop: spacing.lg,
+    paddingBottom: spacing.md,
   },
   balanceCard: {
     flex: 1,

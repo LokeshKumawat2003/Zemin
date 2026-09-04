@@ -64,7 +64,7 @@ export const CreateSubscriptionTierScreen = ({ navigation, route }: Props) => {
       <View style={styles.form}>
         <Input label="Plan name" value={name} onChangeText={setName} placeholder="Supporter" maxLength={50} />
         <Input
-          label="Monthly price (USD)"
+          label="Monthly price "
           value={price}
           onChangeText={setPrice}
           placeholder="5.00"

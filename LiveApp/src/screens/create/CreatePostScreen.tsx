@@ -18,7 +18,7 @@ type Props = NativeStackScreenProps<HomeStackParamList, 'CreatePost'>;
 export const CreatePostScreen = ({ navigation }: Props) => {
   const [caption, setCaption] = useState('');
   const [mediaUri, setMediaUri] = useState<string | null>(null);
-  const [visibility, setVisibility] = useState<'public' | 'subscribers' | 'ppv'>('public');
+  const [visibility, setVisibility] = useState<'public' | 'ppv'>('public');
   const [unlockGift, setUnlockGift] = useState<GiftItem | null>(null);
   const [loading, setLoading] = useState(false);
   const { fs, sp } = useResponsive();
@@ -119,10 +119,10 @@ export const CreatePostScreen = ({ navigation }: Props) => {
             <View style={styles.settingsCard}>
               <Text style={styles.sectionTitle}>Who can see this?</Text>
               <View style={styles.visibilityRow}>
-                {(['public', 'subscribers', 'ppv'] as const).map((value) => {
+                {(['public', 'ppv'] as const).map((value) => {
                   const active = visibility === value;
-                  const iconName = value === 'public' ? 'public' : value === 'subscribers' ? 'group' : 'lock';
-                  const label = value === 'public' ? 'Public' : value === 'subscribers' ? 'Subscribers' : 'PPV';
+                  const iconName = value === 'public' ? 'public' : 'lock';
+                  const label = value === 'public' ? 'Public' : 'PPV';
                   return (
                     <TouchableOpacity key={value} style={[styles.visibilityButton, active && styles.visibilityButtonActive]} onPress={() => setVisibility(value)} activeOpacity={0.8}>
                       <Icon name={iconName} size={fs(19)} color={active ? '#fff' : colors.textSecondary} />
