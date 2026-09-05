@@ -171,8 +171,7 @@ class ChatService {
       isMine: true,
     };
 
-    try {
-      await notificationService.create({
+    void notificationService.create({
         userId: recipientId,
         type: 'message',
         title: 'New message',
@@ -184,10 +183,9 @@ class ChatService {
           actorName: sender.displayName || sender.username,
         },
         sendPush: true,
-      });
-    } catch (err) {
+      }).catch((err) => {
       console.warn('[ChatService] notification create failed:', err.message || err);
-    }
+      });
 
     try {
       const { getIO } = require('../sockets');

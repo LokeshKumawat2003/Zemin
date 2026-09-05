@@ -1,6 +1,7 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
+  Alert,
   ActivityIndicator,
   Animated,
   FlatList,
@@ -276,21 +277,37 @@ export const ChatRoomScreen = ({ route, navigation }: Props) => {
     if (!outgoing || sending) return;
     setSending(true);
     setDraft('');
+    const tempId = `pending-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: tempId,
+        kind: 'text',
+        text: outgoing,
+        timestampLabel: formatTime(new Date().toISOString()),
+        isMine: true,
+        isRead: false,
+      },
+    ]);
+    scrollToEnd(true);
 
     try {
       const res = await chatApi.sendMessage(conversationId, outgoing);
       const sent = res.data;
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: sent?.id ?? `${Date.now()}`,
-          kind: 'text',
-          text: sent?.text ?? outgoing,
-          timestampLabel: formatTime(sent?.sentAt ?? new Date().toISOString()),
-          isMine: true,
-          isRead: false,
-        },
-      ]);
+      setMessages((prev) => prev.map((message) => (
+        message.id === tempId
+          ? {
+              ...message,
+              id: sent?.id ?? tempId,
+              text: sent?.text ?? outgoing,
+              timestampLabel: formatTime(sent?.sentAt ?? new Date().toISOString()),
+            }
+          : message
+      )));
+    } catch (error: any) {
+      setMessages((prev) => prev.filter((message) => message.id !== tempId));
+      setDraft(outgoing);
+      Alert.alert('Message not sent', error?.error?.message || 'Please try again.');
     } finally {
       setSending(false);
       if (isAtBottom) {
