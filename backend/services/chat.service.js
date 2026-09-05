@@ -47,7 +47,7 @@ class ChatService {
             : null,
           lastMessage: latestMessage
             ? {
-                text: latestMessage.text,
+                text: latestMessage.text || (latestMessage.type === 'image' ? 'Image' : ''),
                 type: latestMessage.type,
                 senderId: latestMessage.senderId,
                 sentAt: latestMessage.sentAt || latestMessage.createdAt,
@@ -118,6 +118,7 @@ class ChatService {
         },
         type: m.type,
         text: m.text,
+        imageUrl: m.mediaUrl,
         isRead: m.isRead,
         sentAt: m.createdAt,
         isMine: m.senderId._id.equals(userId),
@@ -126,7 +127,7 @@ class ChatService {
     };
   }
 
-  async sendMessage(userId, { conversationId, text, type = 'text' }) {
+  async sendMessage(userId, { conversationId, text, type = 'text', mediaUrl }) {
     const conversation = await Conversation.findById(conversationId);
     if (!conversation || !conversation.participants.some((p) => p.equals(userId))) {
       throw new AppError('FORBIDDEN', 403, 'Access denied');
@@ -137,6 +138,7 @@ class ChatService {
       senderId: userId,
       type,
       text,
+      mediaUrl,
     });
 
     const recipientId = conversation.participants.find((p) => !p.equals(userId));
@@ -147,6 +149,7 @@ class ChatService {
     conversation.lastMessage = {
       text,
       type,
+      mediaUrl,
       senderId: userId,
       sentAt: message.createdAt,
     };
@@ -162,6 +165,7 @@ class ChatService {
       senderId: userId.toString(),
       text,
       type,
+      imageUrl: mediaUrl,
       sentAt: message.createdAt,
       sender: {
         username: sender.username,

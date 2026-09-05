@@ -6,6 +6,7 @@ const messageSchema = new mongoose.Schema(
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     type: { type: String, enum: ['text', 'image', 'video', 'tip'], default: 'text' },
     text: { type: String, maxlength: 5000 },
+    mediaUrl: String,
     isRead: { type: Boolean, default: false },
     readAt: Date,
     isDeleted: { type: Boolean, default: false },

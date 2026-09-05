@@ -136,8 +136,8 @@ export const chatApi = {
   getMessages: (conversationId: string, page = 1) =>
     apiClient.get(`/chat/messages/${conversationId}`, { params: { page } }),
 
-  sendMessage: (conversationId: string, text: string) =>
-    apiClient.post('/chat/send', { conversationId, text, type: 'text' }),
+  sendMessage: (conversationId: string, text: string, type: 'text' | 'image' = 'text', mediaUrl?: string) =>
+    apiClient.post('/chat/send', { conversationId, text, type, mediaUrl }),
 };
 
 export const searchApi = {

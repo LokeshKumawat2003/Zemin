@@ -8,6 +8,7 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  Modal,
   Platform,
   Text,
   TextInput,
@@ -16,9 +17,12 @@ import {
   View,
 } from 'react-native';
 import Icon from '@react-native-vector-icons/material-icons';
+import { launchImageLibrary } from 'react-native-image-picker';
+import { CameraRoll } from '@react-native-camera-roll/camera-roll';
+import RNFS from 'react-native-fs';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { chatApi } from '../../api';
+import { chatApi, uploadApi } from '../../api';
 import { ChatStackParamList } from '../../navigation/types';
 
 type Props = NativeStackScreenProps<ChatStackParamList, 'ChatRoom'>;
@@ -155,6 +159,8 @@ export const ChatRoomScreen = ({ route, navigation }: Props) => {
   const [draft, setDraft] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isKeyboardVisible, setIsKeyboardVisible] = useState(false);
   const [isAtBottom, setIsAtBottom] = useState(true);
@@ -318,6 +324,67 @@ export const ChatRoomScreen = ({ route, navigation }: Props) => {
     }
   };
 
+  const sendImage = async () => {
+    if (sending || uploadingImage) return;
+    const result = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1, quality: 0.9 });
+    const asset = result.assets?.[0];
+    if (!asset?.uri) return;
+
+    setUploadingImage(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', {
+        uri: asset.uri,
+        type: asset.type || 'image/jpeg',
+        name: asset.fileName || 'chat-image.jpg',
+      } as any);
+      formData.append('folder', 'chat');
+      formData.append('type', 'image');
+      const upload = await uploadApi.uploadMedia(formData);
+      const imageUrl = upload.data?.url;
+      if (!imageUrl) throw new Error('Image upload failed');
+
+      const tempId = `pending-image-${Date.now()}`;
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: tempId,
+          kind: 'image',
+          imageUrl,
+          timestampLabel: formatTime(new Date().toISOString()),
+          isMine: true,
+          isRead: false,
+        },
+      ]);
+      scrollToEnd(true);
+
+      const response = await chatApi.sendMessage(conversationId, '', 'image', imageUrl);
+      const sent = response.data;
+      setMessages((prev) => prev.map((message) => (
+        message.id === tempId
+          ? { ...message, id: sent?.id ?? tempId, timestampLabel: formatTime(sent?.sentAt) }
+          : message
+      )));
+    } catch (error: any) {
+      Alert.alert('Image not sent', error?.error?.message || error?.message || 'Please try again.');
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const downloadSelectedImage = async () => {
+    if (!selectedImage) return;
+    try {
+      const filePath = `${RNFS.CachesDirectoryPath}/zemin-chat-${Date.now()}.jpg`;
+      const result = await RNFS.downloadFile({ fromUrl: selectedImage, toFile: filePath }).promise;
+      if (result.statusCode && result.statusCode >= 400) throw new Error('Download failed');
+      await CameraRoll.save(`file://${filePath}`, { type: 'photo', album: 'Zemin' });
+      Alert.alert('Downloaded', 'Image saved to your photo gallery.');
+    } catch (error: any) {
+      Alert.alert('Download failed', error?.message || 'Could not save the image.');
+    }
+  };
+
   const renderItem = useCallback(({ item }: { item: ChatMessage }) => (
     <View style={{ width: '100%', maxWidth: railWidth, alignSelf: 'center' }}>
       {item.dateLabel && (
@@ -366,10 +433,12 @@ export const ChatRoomScreen = ({ route, navigation }: Props) => {
           )}
 
           {item.kind === 'image' && item.imageUrl && (
-            <Image
-              source={{ uri: item.imageUrl }}
-              style={{ width: f(210), height: f(150), borderRadius: radius.md }}
-            />
+            <TouchableOpacity activeOpacity={0.85} onPress={() => setSelectedImage(item.imageUrl!)}>
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={{ width: f(210), height: f(150), borderRadius: radius.md }}
+              />
+            </TouchableOpacity>
           )}
 
           {item.kind === 'voice' && (
@@ -473,12 +542,6 @@ export const ChatRoomScreen = ({ route, navigation }: Props) => {
 
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: space.sm }}>
               <TouchableOpacity hitSlop={10} style={{ padding: space.xs }}>
-                <Icon name="call" size={f(22)} color={palette.inkSoft} />
-              </TouchableOpacity>
-              <TouchableOpacity hitSlop={10} style={{ padding: space.xs }}>
-                <Icon name="videocam" size={f(22)} color={palette.inkSoft} />
-              </TouchableOpacity>
-              <TouchableOpacity hitSlop={10} style={{ padding: space.xs }}>
                 <Icon name="more-vert" size={f(22)} color={palette.inkSoft} />
               </TouchableOpacity>
             </View>
@@ -569,8 +632,12 @@ export const ChatRoomScreen = ({ route, navigation }: Props) => {
               backgroundColor: palette.bg,
             }}
           >
-            <TouchableOpacity hitSlop={8} style={{ paddingBottom: space.sm }}>
-              <Icon name="add-circle-outline" size={f(22)} color={palette.inkSoft} />
+            <TouchableOpacity hitSlop={8} style={{ paddingBottom: space.sm }} onPress={sendImage} disabled={uploadingImage || sending}>
+              {uploadingImage ? (
+                <ActivityIndicator size="small" color={palette.inkSoft} />
+              ) : (
+                <Icon name="add-circle-outline" size={f(22)} color={palette.inkSoft} />
+              )}
             </TouchableOpacity>
 
             <Animated.View
@@ -643,6 +710,48 @@ export const ChatRoomScreen = ({ route, navigation }: Props) => {
           </View>
         </View>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={!!selectedImage}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedImage(null)}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.96)', justifyContent: 'center' }}>
+          <TouchableOpacity
+            onPress={() => setSelectedImage(null)}
+            style={{ position: 'absolute', top: insets.top + space.md, right: space.md, zIndex: 2, padding: space.sm }}
+          >
+            <Icon name="close" size={f(28)} color={palette.ink} />
+          </TouchableOpacity>
+
+          {selectedImage ? (
+            <Image
+              source={{ uri: selectedImage }}
+              resizeMode="contain"
+              style={{ width: '100%', height: '70%' }}
+            />
+          ) : null}
+
+          <TouchableOpacity
+            onPress={downloadSelectedImage}
+            style={{
+              alignSelf: 'center',
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: space.sm,
+              marginTop: space.lg,
+              paddingHorizontal: space.lg,
+              paddingVertical: space.md,
+              borderRadius: radius.pill,
+              backgroundColor: palette.accent,
+            }}
+          >
+            <Icon name="download" size={f(20)} color={palette.ink} />
+            <Text style={{ color: palette.ink, fontSize: f(14), fontWeight: '700' }}>Download image</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
