@@ -104,7 +104,7 @@ export const walletApi = {
 };
 
 export const liveApi = {
-  getActive: (page = 1) => apiClient.get('/live/active', { params: { page } }),
+  getActive: (page = 1) => apiClient.get('/live/active', { params: { page, limit: 20 } }),
   getVipRooms: (page = 1) => apiClient.get('/live/vip', { params: { page } }),
   getRoom: (roomId: string) => apiClient.get(`/live/${roomId}`),
   create: (data: {

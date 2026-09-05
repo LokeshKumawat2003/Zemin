@@ -270,7 +270,10 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
             <View style={styles.liveDotSmall} />
             <Text style={styles.livePillText}>LIVE</Text>
           </View>
-          <Text style={styles.viewerText}>{item.viewerCount || 0}</Text>
+          <View style={styles.roomStats}>
+            <Text style={styles.viewerText}>{item.viewerCount || 0} views</Text>
+            <Text style={styles.viewerText}>{item.followerCount || 0} followers</Text>
+          </View>
         </View>
         <View style={styles.roomInfo}>
           <Text numberOfLines={1} style={styles.roomTitle}>{item.title}</Text>
@@ -512,6 +515,24 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
             </TouchableOpacity>
           </View>
         </View>
+
+        <LiveRoomSection
+          title="Top Live Now"
+          countLabel={`${liveRooms.length} live`}
+          loading={loading}
+          isEmpty={liveRooms.length === 0}
+          emptyTitle="No public rooms are live"
+          emptySubtitle="Come back soon to find creators live now"
+          style={styles.roomSection}
+        >
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.liveGrid}
+          >
+            {liveRooms.map(renderRoomCard)}
+          </ScrollView>
+        </LiveRoomSection>
 
         <LiveRoomSection
           title="VIP Rooms"
@@ -776,6 +797,11 @@ const styles = StyleSheet.create({
     gap: CARD_GAP,
     marginBottom: spacing.md,
   },
+  liveGrid: {
+    flexDirection: 'row',
+    gap: CARD_GAP,
+    paddingBottom: spacing.md,
+  },
   roomSection: { marginTop: spacing.sm },
   vipStartBtnOverlay: {
     backgroundColor: colors.accentPurple,
@@ -899,6 +925,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
   },
   roomCard: {
+    width: 220,
     borderRadius: 18,
     overflow: 'hidden',
     backgroundColor: colors.surface,
@@ -920,6 +947,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  roomStats: {
+    flexDirection: 'row',
+    gap: 6,
   },
   livePillSmall: {
     flexDirection: 'row',

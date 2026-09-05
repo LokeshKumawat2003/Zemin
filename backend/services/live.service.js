@@ -50,8 +50,11 @@ class LiveService {
     };
   }
 
-  mapRoomSummary(r, giftMap = {}) {
+  mapRoomSummary(r, giftMap = {}, creatorStats = {}) {
     const entryGift = r.entryGiftId ? giftMap[r.entryGiftId] : null;
+    const followerCount = creatorStats.followersCount || 0;
+    const totalViews = r.stats.totalViewers || 0;
+    const currentViewers = r.stats.currentViewers || 0;
     return {
       id: r._id.toString(),
       title: r.title,
@@ -70,7 +73,11 @@ class LiveService {
         : null,
       scheduledAt: r.scheduledAt,
       status: r.status,
-      viewerCount: r.stats.currentViewers,
+      viewerCount: currentViewers,
+      followerCount,
+      totalViews,
+      peakViewers: r.stats.peakViewers || 0,
+      popularityScore: followerCount + currentViewers * 10 + totalViews,
       host: this.mapRoomHost(r),
       startedAt: r.startedAt,
     };
@@ -523,17 +530,31 @@ class LiveService {
     const filter = { status: 'live', roomType: { $ne: 'vip' } };
     if (category) filter.category = category;
 
-    const [rooms, total] = await Promise.all([
+    const [allRooms, total] = await Promise.all([
       LiveRoom.find(filter)
-        .sort({ 'stats.currentViewers': -1 })
-        .skip(skip)
-        .limit(limit)
         .populate('userId', 'username displayName avatar isVerified'),
       LiveRoom.countDocuments(filter),
     ]);
 
+    const creatorStats = await Creator.find({
+      userId: { $in: allRooms.map((room) => room.userId?._id).filter(Boolean) },
+    })
+      .select('userId stats.followersCount')
+      .lean();
+    const followerCounts = creatorStats.reduce((map, creator) => {
+      map[creator.userId.toString()] = creator.stats?.followersCount || 0;
+      return map;
+    }, {});
+    const rankedRooms = allRooms
+      .map((room) => ({
+        summary: this.mapRoomSummary(room, {}, {
+          followersCount: followerCounts[room.userId?._id?.toString()] || 0,
+        }),
+      }))
+      .sort((a, b) => b.summary.popularityScore - a.summary.popularityScore);
+
     return {
-      rooms: rooms.map((r) => this.mapRoomSummary(r)),
+      rooms: rankedRooms.slice(skip, skip + limit).map(({ summary }) => summary),
       total,
     };
   }
