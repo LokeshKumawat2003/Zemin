@@ -27,6 +27,12 @@ class ChatService {
       items.map(async (conv) => {
         const otherId = conv.participants.find((p) => p.toString() !== userId.toString());
         const participant = await User.findById(otherId).select('username displayName avatar isVerified isCreator');
+        const latestMessage = conv.lastMessage?.sentAt
+          ? conv.lastMessage
+          : await Message.findOne({ conversationId: conv._id, isDeleted: false })
+              .sort({ createdAt: -1 })
+              .select('text type senderId createdAt')
+              .lean();
         return {
           conversationId: conv._id,
           participant: participant
@@ -39,7 +45,14 @@ class ChatService {
                 isCreator: participant.isCreator,
               }
             : null,
-          lastMessage: conv.lastMessage,
+          lastMessage: latestMessage
+            ? {
+                text: latestMessage.text,
+                type: latestMessage.type,
+                senderId: latestMessage.senderId,
+                sentAt: latestMessage.sentAt || latestMessage.createdAt,
+              }
+            : null,
           unreadCount: getUnreadCount(conv.unreadCounts, userId),
           updatedAt: conv.updatedAt,
         };

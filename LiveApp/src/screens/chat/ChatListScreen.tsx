@@ -44,6 +44,7 @@ interface OnlineFriend {
 
 interface ConversationItem {
   conversationId: string;
+  participantId: string;
   username: string;
   displayName: string;
   verified: boolean;
@@ -98,11 +99,14 @@ export const ChatListScreen = ({ navigation }: Props) => {
   const upsertConversationMessage = useCallback((msg: any) => {
     setConversations((prev) => {
       const timestampLabel = formatTimestamp(msg.sentAt);
-      const conversationIndex = prev.findIndex((item) => item.conversationId === msg.conversationId);
+      const conversationIndex = prev.findIndex(
+        (item) => item.conversationId === msg.conversationId || item.participantId === String(msg.senderId)
+      );
       const existing = conversationIndex >= 0 ? prev[conversationIndex] : undefined;
 
       const updatedConversation: ConversationItem = {
         conversationId: msg.conversationId,
+        participantId: String(msg.senderId || existing?.participantId || ''),
         username: msg.sender?.username ?? existing?.username ?? 'unknown',
         displayName: msg.sender?.displayName ?? existing?.displayName ?? msg.sender?.username ?? 'Unknown',
         verified: existing?.verified ?? !!msg.sender?.verified,
@@ -137,21 +141,26 @@ export const ChatListScreen = ({ navigation }: Props) => {
       const convRes = await chatApi.getConversations();
       const rawConvos = convRes.data || [];
 
-      setConversations(
-        rawConvos.map((c: any) => ({
-          conversationId: c.conversationId,
+      const uniqueConversations = new Map<string, ConversationItem>();
+      rawConvos.forEach((c: any) => {
+        const participantId = String(c.participant?.id || c.participant?._id || '');
+        if (!participantId || uniqueConversations.has(participantId)) return;
+        uniqueConversations.set(participantId, {
+          conversationId: String(c.conversationId),
+          participantId,
           username: c.participant?.username ?? 'unknown',
           displayName: c.participant?.displayName ?? c.participant?.username ?? 'Unknown',
-          verified: !!c.participant?.verified,
-          avatar: c.participant?.avatarUrl,
+          verified: !!(c.participant?.isVerified ?? c.participant?.verified),
+          avatar: c.participant?.avatar ?? c.participant?.avatarUrl,
           isOnline: !!c.participant?.isOnline,
           lastMessageText: c.lastMessage?.text ?? 'No messages yet',
-          lastMessageIsMedia: !!c.lastMessage?.isMedia,
+          lastMessageIsMedia: c.lastMessage?.type !== undefined && c.lastMessage?.type !== 'text',
           timestampLabel: formatTimestamp(c.lastMessage?.sentAt),
           unreadCount: c.unreadCount ?? 0,
           pinned: !!c.pinned,
-        }))
-      );
+        });
+      });
+      setConversations(Array.from(uniqueConversations.values()));
 
       setOnlineFriends([]);
     } finally {
