@@ -5,12 +5,14 @@ import {
   StyleSheet,
   FlatList,
   ScrollView,
+  TextInput,
   TouchableOpacity,
   ActivityIndicator,
   Image,
 } from 'react-native';
+import Icon from '@react-native-vector-icons/material-icons';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { colors as baseColors, typography, spacing } from '../../theme';
+import { colors as baseColors, typography } from '../../theme';
 import { chatApi } from '../../api';
 import { useAppSelector } from '../../redux/hooks';
 import { ChatStackParamList } from '../../navigation/types';
@@ -82,6 +84,8 @@ export const ChatListScreen = ({ navigation }: Props) => {
   const [conversations, setConversations] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [search, setSearch] = useState('');
+  const [filter, setFilter] = useState<'all' | 'unread'>('all');
 
   const updateConversationUnread = useCallback((conversationId: string, delta: number, replaceValue?: number) => {
     setConversations((prev) =>
@@ -212,6 +216,13 @@ export const ChatListScreen = ({ navigation }: Props) => {
     navigation.navigate('ChatList' as any);
   };
 
+  const visibleConversations = conversations.filter((conversation) => {
+    const query = search.trim().toLowerCase();
+    const matchesSearch = !query || `${conversation.displayName} ${conversation.username}`.toLowerCase().includes(query);
+    const matchesFilter = filter === 'all' || conversation.unreadCount > 0;
+    return matchesSearch && matchesFilter;
+  });
+
   const renderListHeader = () => (
     <View>
       {/* Online friends row */}
@@ -220,7 +231,7 @@ export const ChatListScreen = ({ navigation }: Props) => {
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.onlineRow}
       >
-        <TouchableOpacity style={styles.friendItem} onPress={handleNewChatPress}>
+        {/* <TouchableOpacity style={styles.friendItem} onPress={handleNewChatPress}>
           <View style={styles.newChatCircle}>
             <Text style={styles.newChatIcon}>+</Text>
             <View style={styles.newChatBadge}>
@@ -228,7 +239,7 @@ export const ChatListScreen = ({ navigation }: Props) => {
             </View>
           </View>
           <Text style={styles.friendLabel}>New Chat</Text>
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {onlineFriends.map((f) => (
           <TouchableOpacity
@@ -256,22 +267,61 @@ export const ChatListScreen = ({ navigation }: Props) => {
   return (
     <View style={styles.container}>
       <View style={[styles.contentWrap, { maxWidth: contentMaxWidth }]}>
-      {/* Header */}
       <View style={styles.topBar}>
-        <Text style={styles.headerTitle}>Messages</Text>
+        <View>
+          <Text style={styles.eyebrow}>YOUR INBOX</Text>
+          <Text style={styles.headerTitle}>Messages</Text>
+        </View>
+        <TouchableOpacity onPress={handleNewChatPress} style={styles.composeButton} hitSlop={8}>
+          <Icon name="edit" size={20} color="#fff" />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.searchBox}>
+        <Icon name="search" size={20} color={colors.textSecondary} />
+        <TextInput
+          value={search}
+          onChangeText={setSearch}
+          placeholder="Search conversations"
+          placeholderTextColor={colors.textSecondary}
+          style={styles.searchInput}
+          returnKeyType="search"
+        />
+        {search.length > 0 && (
+          <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
+            <Icon name="close" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </View>
+
+      <View style={styles.filterRow}>
+        {(['all', 'unread'] as const).map((key) => (
+          <TouchableOpacity
+            key={key}
+            onPress={() => setFilter(key)}
+            style={[styles.filterChip, filter === key && styles.filterChipActive]}
+          >
+            <Text style={[styles.filterText, filter === key && styles.filterTextActive]}>
+              {key === 'all' ? 'All messages' : 'Unread'}
+            </Text>
+            {key === 'unread' && conversations.some((conversation) => conversation.unreadCount > 0) && (
+              <View style={styles.filterDot} />
+            )}
+          </TouchableOpacity>
+        ))}
       </View>
 
       {loading ? (
         <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
-          data={conversations}
+          data={visibleConversations}
           keyExtractor={(item) => item.conversationId}
           ListHeaderComponent={renderListHeader}
           refreshing={refreshing}
           onRefresh={onRefresh}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.row} onPress={() => handleConversationPress(item.conversationId)}>
+            <TouchableOpacity style={styles.row} onPress={() => handleConversationPress(item.conversationId)} activeOpacity={0.75}>
               <View style={styles.avatarWrap}>
                 {item.avatar ? (
                   <Image source={{ uri: item.avatar }} style={styles.avatar} />
@@ -285,8 +335,9 @@ export const ChatListScreen = ({ navigation }: Props) => {
                 <View style={styles.rowTopLine}>
                   <View style={styles.nameRow}>
                     <Text style={styles.name}>{item.displayName}</Text>
-                    {item.verified && <Text style={styles.verifiedIcon}>✔️</Text>}
+                    {item.verified && <Icon name="verified" size={14} color={colors.primary} />}
                   </View>
+                  <Text style={styles.timestamp}>{item.timestampLabel}</Text>
                 </View>
                 <Text
                   style={[styles.preview, item.lastMessageIsMedia && styles.previewMedia]}
@@ -297,7 +348,6 @@ export const ChatListScreen = ({ navigation }: Props) => {
               </View>
 
               <View style={styles.rowRight}>
-                <Text style={styles.timestamp}>{item.timestampLabel}</Text>
                 {item.unreadCount > 0 ? (
                   <View style={styles.badge}>
                     <Text style={styles.badgeText}>{item.unreadCount > 4 ? '4+' : item.unreadCount}</Text>
@@ -310,7 +360,7 @@ export const ChatListScreen = ({ navigation }: Props) => {
           )}
           ListEmptyComponent={
             <Text style={styles.empty}>
-              No conversations yet. Visit a creator profile and tap Message!
+              {search || filter === 'unread' ? 'No conversations match this filter.' : 'No conversations yet. Visit a creator profile and tap Message.'}
             </Text>
           }
           contentContainerStyle={styles.list}
@@ -331,11 +381,51 @@ const createStyles = (fs: (n: number) => number, sp: (n: number) => number) =>
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingTop: sp(24),
+    paddingTop: sp(18),
     paddingHorizontal: sp(16),
     paddingBottom: sp(8),
   },
+  eyebrow: { color: colors.primary, fontSize: fs(10), fontWeight: '800', letterSpacing: 1.3, marginBottom: sp(3) },
   headerTitle: { fontSize: fs(26), fontWeight: '800', color: colors.text },
+  composeButton: {
+    width: sp(42),
+    height: sp(42),
+    borderRadius: sp(14),
+    backgroundColor: colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  searchBox: {
+    marginHorizontal: sp(16),
+    marginTop: sp(10),
+    height: sp(46),
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: sp(13),
+    borderRadius: sp(14),
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+    gap: sp(8),
+  },
+  searchInput: { flex: 1, color: colors.text, fontSize: fs(14), paddingVertical: 0 },
+  filterRow: { flexDirection: 'row', gap: sp(8), paddingHorizontal: sp(16), paddingVertical: sp(14) },
+  filterChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: sp(6),
+    paddingHorizontal: sp(13),
+    paddingVertical: sp(8),
+    borderRadius: sp(20),
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  filterChipActive: { backgroundColor: colors.text, borderColor: colors.text },
+  filterText: { color: colors.textSecondary, fontSize: fs(12), fontWeight: '700' },
+  filterTextActive: { color: colors.background },
+  filterDot: { width: sp(6), height: sp(6), borderRadius: sp(3), backgroundColor: colors.primary },
 
   onlineRow: { paddingHorizontal: sp(16), gap: sp(16), paddingBottom: sp(16) },
   friendItem: { alignItems: 'center', width: sp(64) },
@@ -393,10 +483,11 @@ const createStyles = (fs: (n: number) => number, sp: (n: number) => number) =>
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: sp(16),
-    paddingVertical: sp(16),
+    paddingVertical: sp(13),
     gap: sp(12),
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   avatarWrap: { width: sp(56), height: sp(56) },
   avatar: { width: sp(56), height: sp(56), borderRadius: sp(28) },
@@ -413,7 +504,7 @@ const createStyles = (fs: (n: number) => number, sp: (n: number) => number) =>
     borderColor: colors.background,
   },
   rowContent: { flex: 1 },
-  rowTopLine: { flexDirection: 'row', justifyContent: 'space-between' },
+  rowTopLine: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   nameRow: { flexDirection: 'row', alignItems: 'center', gap: sp(4) },
   name: { color: colors.text, fontSize: fs(15), fontWeight: '700' },
   verifiedIcon: { fontSize: fs(11) },

@@ -106,6 +106,11 @@ class ChatService {
       { isRead: true, readAt: new Date() }
     );
 
+    if (conversation.unreadCounts?.get(userId.toString()) > 0) {
+      conversation.unreadCounts.set(userId.toString(), 0);
+      await conversation.save({ timestamps: false });
+    }
+
     return {
       items: messages.reverse().map((m) => ({
         id: m._id,
