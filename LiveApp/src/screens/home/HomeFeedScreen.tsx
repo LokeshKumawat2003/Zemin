@@ -40,7 +40,12 @@ export const HomeFeedScreen = ({ navigation }: Props) => {
   const scrollY = useRef(new Animated.Value(0)).current;
   const [tab, setTab] = useState<CategoryTab>('foryou');
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const pageRef = useRef(1);
+  const hasMoreRef = useRef(true);
+  const loadingMoreRef = useRef(false);
+  const sourceRef = useRef<'live' | 'feed'>('live');
 
   const [gems, setGems] = useState(0);
   const [coins, setCoins] = useState(0);
@@ -59,21 +64,28 @@ export const HomeFeedScreen = ({ navigation }: Props) => {
 
   const topBarHeight = sp(HOME_TOP_BAR_HEIGHT);
 
-  const loadFeed = useCallback(async () => {
+  const loadFeed = useCallback(async (page = 1, append = false) => {
+    if (append) {
+      if (!hasMoreRef.current || loadingMoreRef.current) return;
+      loadingMoreRef.current = true;
+      setLoadingMore(true);
+    } else {
+      pageRef.current = 1;
+      hasMoreRef.current = true;
+      sourceRef.current = 'live';
+      setLoading(true);
+    }
+
     try {
-      const [walletRes, feedRes, notifRes, liveRes, vipRes] = await Promise.all([
-        walletApi.getBalance().catch(() => ({
-          data: { coinBalance: user?.coinBalance ?? 0, walletBalance: user?.walletBalance ?? 0 },
-        })),
-        tab === 'following' ? feedApi.getFollowing() : feedApi.getForYou(),
-        notificationApi.unreadCount().catch(() => ({ data: { count: 0 } })),
-        liveApi.getActive().catch(() => ({ data: [] })),
-        tab === 'vip' ? liveApi.getVipRooms().catch(() => ({ data: [] })) : Promise.resolve({ data: [] }),
+      const [feedRes, liveRes] = await Promise.all([
+        tab === 'following' ? feedApi.getFollowing(page, 10) : feedApi.getForYou(page, 10),
+        liveApi.getActive(page).catch(() => ({ data: [], meta: { totalPages: 0 } })),
       ]);
 
-      const walletData = unwrapApiResponse<any>(walletRes);
       const rawPosts = feedRes.data || [];
-      const rawVipRooms = vipRes.data || [];
+      const rawLiveRooms = liveRes.data || [];
+
+      if (!append) sourceRef.current = rawLiveRooms.length > 0 ? 'live' : 'feed';
 
       const feedStreamers: StreamerCardData[] = rawPosts.map((p: any) => ({
         id: p.id,
@@ -89,21 +101,7 @@ export const HomeFeedScreen = ({ navigation }: Props) => {
         source: 'feed',
       }));
 
-      const vipStreamersFromApi: StreamerCardData[] = rawVipRooms.map((room: any) => ({
-        id: String(room.id || room.roomId || 'vip'),
-        userId: room.host?.id,
-        username: room.host?.username ?? 'unknown',
-        displayName: room.host?.displayName ?? room.host?.username ?? 'Unknown',
-        verified: !!room.host?.verified,
-        tagline: room.title ?? room.host?.bio ?? '',
-        viewers: room.viewerCount ?? 0,
-        coinPrice: room.entryFeeCoins ?? room.coinPrice ?? 0,
-        thumbnail: room.thumbnail || room.host?.avatar || room.host?.avatarUrl,
-        isLive: true,
-        source: 'live',
-      }));
-
-      const liveStreamersFromApi: StreamerCardData[] = (liveRes.data || []).map((room: any) => ({
+      const liveStreamersFromApi: StreamerCardData[] = rawLiveRooms.map((room: any) => ({
         id: String(room.id || room.roomId || 'live'),
         userId: room.host?.id,
         username: room.host?.username ?? 'unknown',
@@ -118,27 +116,52 @@ export const HomeFeedScreen = ({ navigation }: Props) => {
       }));
 
       const streamers =
-        tab === 'vip'
-          ? vipStreamersFromApi
-          : liveStreamersFromApi.length > 0
-            ? liveStreamersFromApi
-            : feedStreamers;
+        sourceRef.current === 'live' ? liveStreamersFromApi : feedStreamers;
 
-      setLiveStreamers(streamers);
-      setUnreadNotifications(notifRes.data?.count || 0);
-      setGems(walletData?.walletBalance ?? user?.walletBalance ?? 0);
-      setCoins(walletData?.coinBalance ?? user?.coinBalance ?? 0);
+      setLiveStreamers((previous) => {
+        if (!append) return streamers;
+        const merged = [...previous, ...streamers];
+        return merged.filter(
+          (item, index, items) => items.findIndex((candidate) => candidate.id === item.id) === index
+        );
+      });
+      const responseMeta = sourceRef.current === 'live'
+        ? (liveRes as any).meta
+        : (feedRes as any).meta;
+      hasMoreRef.current = page < (responseMeta?.totalPages ?? 1);
+      pageRef.current = page;
+      setLoading(false);
+
+      void Promise.all([
+        walletApi.getBalance().catch(() => ({
+          data: { coinBalance: user?.coinBalance ?? 0, walletBalance: user?.walletBalance ?? 0 },
+        })),
+        notificationApi.unreadCount().catch(() => ({ data: { count: 0 } })),
+      ]).then(([walletRes, notifRes]) => {
+        const walletData = unwrapApiResponse<any>(walletRes);
+        setUnreadNotifications(notifRes.data?.count || 0);
+        setGems(walletData?.walletBalance ?? user?.walletBalance ?? 0);
+        setCoins(walletData?.coinBalance ?? user?.coinBalance ?? 0);
+      });
     } catch {
       setLiveStreamers([]);
     } finally {
-      setLoading(false);
+      if (append) {
+        loadingMoreRef.current = false;
+        setLoadingMore(false);
+      } else {
+        setLoading(false);
+      }
       setRefreshing(false);
     }
   }, [tab, user]);
 
   useEffect(() => {
-    setLoading(true);
     loadFeed();
+  }, [loadFeed]);
+
+  const loadMore = useCallback(() => {
+    loadFeed(pageRef.current + 1, true);
   }, [loadFeed]);
 
   const refreshUnread = useCallback(async () => {
@@ -299,10 +322,15 @@ export const HomeFeedScreen = ({ navigation }: Props) => {
                 refreshing={refreshing}
                 onRefresh={() => {
                   setRefreshing(true);
-                  loadFeed();
+                  loadFeed(1);
                 }}
                 tintColor={colors.primary}
               />
+            }
+            onEndReached={loadMore}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              loadingMore ? <ActivityIndicator color={colors.primary} style={{ marginVertical: sp(20) }} /> : null
             }
             ListEmptyComponent={
               <Text style={styles.empty}>No one is live right now. Check back soon!</Text>

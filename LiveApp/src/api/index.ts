@@ -59,8 +59,8 @@ export const authApi = {
 };
 
 export const feedApi = {
-  getFollowing: (page = 1) => apiClient.get('/feed/following', { params: { page } }),
-  getForYou: (page = 1) => apiClient.get('/feed/for-you', { params: { page } }),
+  getFollowing: (page = 1, limit = 10) => apiClient.get('/feed/following', { params: { page, limit } }),
+  getForYou: (page = 1, limit = 10) => apiClient.get('/feed/for-you', { params: { page, limit } }),
   getPost: (postId: string) => apiClient.get(`/post/${postId}`),
   createPost: (data: object) => apiClient.post('/post/create', data),
   likePost: (postId: string) => apiClient.post('/post/like', { postId }),
@@ -104,7 +104,7 @@ export const walletApi = {
 };
 
 export const liveApi = {
-  getActive: (page = 1) => apiClient.get('/live/active', { params: { page, limit: 20 } }),
+  getActive: (page = 1, limit = 10) => apiClient.get('/live/active', { params: { page, limit } }),
   getVipRooms: (page = 1) => apiClient.get('/live/vip', { params: { page } }),
   getRoom: (roomId: string) => apiClient.get(`/live/${roomId}`),
   create: (data: {
