@@ -4,37 +4,23 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  FlatList,
-  ActivityIndicator,
   Alert,
-  RefreshControl,
-  Modal,
-  Dimensions,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { HomeStackParamList } from '../../navigation/HomeStack';
 import { colors, spacing } from '../../theme';
 import { liveApi } from '../../api';
-import { LiveStreamerCard, LiveStreamerCardData } from '../../components/live/LiveStreamerCard';
-import { liveStreamerCardStyles } from '../../components/live/LiveStreamerCard';
-import { getGiftEmoji } from '../../components/live/LiveGiftEffects';
+import type { LiveStreamerCardData } from '../../components/live/LiveStreamerCard';
+import { VipGiftModal } from '../../components/home/VipGiftModal';
+import { VipScreenHeader } from '../../components/home/VipScreenHeader';
+import { VipRoomGrid } from '../../components/home/VipRoomGrid';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'VipScreen'>;
 
 interface VipRoom extends LiveStreamerCardData {
-  host?: {
-    id: string;
-    username: string;
-    displayName?: string;
-    avatar?: string;
-    isVerified?: boolean;
-  };
+  host?: { id: string; username: string; displayName?: string; avatar?: string; isVerified?: boolean };
 }
-
-const CARD_GAP = spacing.sm ?? 8;
-const SCREEN_WIDTH = Dimensions.get('window').width;
-const CARD_WIDTH = (SCREEN_WIDTH - spacing.md * 2 - CARD_GAP) / 2;
 
 const formatTime = (iso?: string) => {
   if (!iso) return 'Starting soon';
@@ -130,117 +116,18 @@ export const VipScreen = ({ navigation }: Props) => {
     }
   };
 
-  const renderItem = ({ item }: { item: VipRoom }) => (
-    <View style={{ width: CARD_WIDTH }}>
-      <LiveStreamerCard
-        item={item}
-        variant="vip"
-        onPress={() => openGiftPay(item)}
-        onGiftPress={() => openGiftPay(item)}
-      />
-    </View>
-  );
-
-  const giftEmoji = selectedRoom?.entryGift
-    ? getGiftEmoji(
-        selectedRoom.entryGift.giftId,
-        selectedRoom.entryGift.name,
-        selectedRoom.entryGift.emoji
-      )
-    : '🎁';
-  const giftCost = selectedRoom?.entryGift?.coinCost ?? selectedRoom?.entryFeeCoins ?? 0;
-
   return (
     <View style={styles.container}>
-      <View style={styles.headerCard}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.eyebrow}>VIP access</Text>
-          <Text style={styles.title}>Private rooms</Text>
-          <Text style={styles.subtitle}>Tap the gift on a card to pay and enter.</Text>
-        </View>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
-          <Text style={styles.backBtnText}>←</Text>
-        </TouchableOpacity>
-      </View>
+      <VipScreenHeader featured={featured} onBack={() => navigation.goBack()} formatTime={formatTime} />
 
-      {featured ? (
-        <View style={styles.featuredCard}>
-          <Text style={styles.featuredLabel}>
-            {featured.status === 'live' ? 'Featured live VIP' : 'Upcoming VIP'}
-          </Text>
-          <Text style={styles.featuredTitle}>{featured.title}</Text>
-          <Text style={styles.featuredMeta}>
-            {featured.displayName} • {featured.status === 'live' ? 'Live now' : formatTime(featured.scheduledAt)}
-          </Text>
-        </View>
-      ) : null}
+      <VipRoomGrid rooms={rooms} loading={loading} refreshing={refreshing} onRefresh={() => { setRefreshing(true); void loadRooms(); }} onRoomPress={openGiftPay} />
 
-      {loading ? (
-        <ActivityIndicator color={colors.primary} style={styles.loader} />
-      ) : (
-        <FlatList
-          data={rooms}
-          keyExtractor={(item) => String(item.id)}
-          numColumns={2}
-          columnWrapperStyle={liveStreamerCardStyles.gridRow}
-          contentContainerStyle={styles.listContent}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={() => {
-                setRefreshing(true);
-                loadRooms();
-              }}
-              tintColor={colors.primary}
-            />
-          }
-          ListEmptyComponent={
-            <View style={styles.emptyCard}>
-              <Text style={styles.emptyTitle}>No VIP rooms yet</Text>
-              <Text style={styles.emptySubtitle}>Creators can schedule private VIP sessions from Go Live</Text>
-            </View>
-          }
-          renderItem={renderItem}
-        />
-      )}
-
-      <Modal visible={!!selectedRoom} transparent animationType="fade" onRequestClose={() => setSelectedRoom(null)}>
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalEyebrow}>Send entry gift</Text>
-            <Text style={styles.modalTitle}>{selectedRoom?.title}</Text>
-            <Text style={styles.modalHost}>to {selectedRoom?.displayName}</Text>
-
-            <View style={styles.modalGiftBubble}>
-              <Text style={styles.modalGiftEmoji}>{giftEmoji}</Text>
-              <Text style={styles.modalGiftName}>{selectedRoom?.entryGift?.name || 'Entry Gift'}</Text>
-              <Text style={styles.modalGiftCost}>🪙 {giftCost} coins</Text>
-            </View>
-
-            <Text style={styles.modalHint}>
-              This gift is sent to the creator. Coins are deducted from your balance. You only pay once per room.
-            </Text>
-
-            <TouchableOpacity
-              style={[styles.modalPayBtn, joining && styles.modalPayBtnDisabled]}
-              onPress={payGiftAndJoin}
-              disabled={joining}
-            >
-              {joining ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.modalPayBtnText}>
-                  {giftEmoji} Send gift & join
-                </Text>
-              )}
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setSelectedRoom(null)}>
-              <Text style={styles.modalCancelText}>Cancel</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <VipGiftModal
+        room={selectedRoom}
+        joining={joining}
+        onClose={() => setSelectedRoom(null)}
+        onPay={payGiftAndJoin}
+      />
     </View>
   );
 };
