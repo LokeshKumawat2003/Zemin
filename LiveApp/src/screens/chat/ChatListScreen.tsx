@@ -201,7 +201,10 @@ export const ChatListScreen = ({ navigation }: Props) => {
     updateConversationUnread(conversationId, 0, 0);
     navigation.navigate('ChatRoom', {
       conversationId,
+      recipientId: conversations.find((item) => item.conversationId === conversationId)?.participantId || '',
       recipientName: conversations.find((item) => item.conversationId === conversationId)?.displayName || 'Chat',
+      recipientAvatar: conversations.find((item) => item.conversationId === conversationId)?.avatar,
+      recipientOnline: conversations.find((item) => item.conversationId === conversationId)?.isOnline,
     });
   };
 

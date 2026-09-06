@@ -21,7 +21,13 @@ export type ProfileStackParamList = {
 
 export type ChatStackParamList = {
   ChatList: undefined;
-  ChatRoom: { conversationId: string; recipientName: string };
+  ChatRoom: {
+    conversationId: string;
+    recipientId: string;
+    recipientName: string;
+    recipientAvatar?: string;
+    recipientOnline?: boolean;
+  };
 };
 
 export type LiveStackParamList = {

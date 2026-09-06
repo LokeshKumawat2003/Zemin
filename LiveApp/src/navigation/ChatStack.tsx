@@ -1,7 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ChatListScreen } from '../screens/chat/ChatListScreen';
-import { ChatRoomScreen } from '../screens/chat/ChatRoomScreen';
+import { ChatRoomScreen } from '../screens/chat/ChatRoomScreen';  
 import { ChatStackParamList } from './types';
 import { colors } from '../theme';
 

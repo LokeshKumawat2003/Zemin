@@ -1,8 +1,11 @@
 const { Server } = require('socket.io');
 const { verifyAccessToken } = require('../utils/jwt.util');
 const { allowedOrigins } = require('../config/env');
+const Conversation = require('../models/Conversation.model');
+const Message = require('../models/Message.model');
 
 let io;
+const onlineUsers = new Map();
 
 const emitLiveViewerCount = (roomId) => {
   if (!roomId) return;
@@ -34,6 +37,8 @@ const initSocket = (server) => {
 
   io.on('connection', (socket) => {
     socket.join(`user:${socket.userId}`);
+    onlineUsers.set(socket.userId, (onlineUsers.get(socket.userId) || 0) + 1);
+    io.emit('presence:update', { userId: socket.userId, online: true });
 
     socket.on('live:join', ({ roomId }) => {
       if (!roomId) return;
@@ -60,12 +65,47 @@ const initSocket = (server) => {
       });
     });
 
-    socket.on('chat:join', ({ conversationId }) => {
-      if (conversationId) socket.join(`chat:${conversationId}`);
+    socket.on('chat:join', async ({ conversationId }) => {
+      if (!conversationId) return;
+      const conversation = await Conversation.findOne({
+        _id: conversationId,
+        participants: socket.userId,
+      }).select('participants');
+      if (!conversation) return;
+
+      socket.join(`chat:${conversationId}`);
+      conversation.participants.forEach((userId) => {
+        const id = userId.toString();
+        socket.emit('presence:update', { userId: id, online: onlineUsers.has(id) });
+      });
     });
 
     socket.on('chat:leave', ({ conversationId }) => {
       if (conversationId) socket.leave(`chat:${conversationId}`);
+    });
+
+    socket.on('chat:read', async ({ conversationId }) => {
+      if (!conversationId) return;
+      const conversation = await Conversation.findOne({
+        _id: conversationId,
+        participants: socket.userId,
+      }).select('_id');
+      if (!conversation) return;
+
+      const unreadMessages = await Message.find({
+        conversationId,
+        senderId: { $ne: socket.userId },
+        isRead: false,
+        isDeleted: false,
+      }).select('_id');
+      if (!unreadMessages.length) return;
+
+      const messageIds = unreadMessages.map((message) => message._id.toString());
+      await Message.updateMany(
+        { _id: { $in: messageIds } },
+        { isRead: true, readAt: new Date() }
+      );
+      io.to(`chat:${conversationId}`).emit('chat:read', { conversationId, messageIds });
     });
 
     socket.on('chat:typing', ({ conversationId }) => {
@@ -78,6 +118,14 @@ const initSocket = (server) => {
     });
 
     socket.on('disconnect', () => {
+      const connections = (onlineUsers.get(socket.userId) || 1) - 1;
+      if (connections > 0) {
+        onlineUsers.set(socket.userId, connections);
+      } else {
+        onlineUsers.delete(socket.userId);
+        io.emit('presence:update', { userId: socket.userId, online: false });
+      }
+
       const liveRooms = socket.data.liveRooms || [];
       for (const roomId of liveRooms) {
         emitLiveViewerCount(roomId);

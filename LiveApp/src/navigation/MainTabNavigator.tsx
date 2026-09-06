@@ -20,7 +20,7 @@ const TabIcon = ({
   focused,
   color,
   featured = false,
-  iconSize = 27,
+  iconSize = 29,
 }: {
   name: React.ComponentProps<typeof Icon>['name'];
   focused: boolean;
@@ -29,7 +29,7 @@ const TabIcon = ({
   iconSize?: number;
 }) => {
   const { fs } = useResponsive();
-  const icon = <Icon name={name} size={fs(featured ? 29 : iconSize)} color={featured ? '#ff6fa6' : color} />;
+  const icon = <Icon name={name} size={fs(featured ? 31 : iconSize)} color={featured ? '#ff6fa6' : color} />;
 
   return featured ? (
     <View
@@ -59,6 +59,8 @@ const shouldShowTabBar = (route: any) => {
     getFocusedRouteNameFromRoute(route) ??
     route?.name;
 
+  if (route?.name === 'Chat') return nestedRouteName !== 'ChatRoom';
+
   const mainTabNames = ['Home', 'Discover', 'GoLive', 'Chat', 'Profile'];
   const mainStackNames = ['HomeFeed', 'DiscoverMain', 'LiveHome', 'ChatList', 'ProfileMain'];
 
@@ -72,7 +74,7 @@ export const MainTabNavigator = () => {
   const insets = useSafeAreaInsets();
   const { fs, sp } = useResponsive();
   const bottomPadding = Math.max(insets.bottom, sp(8));
-  const tabBarHeight = sp(72) + bottomPadding;
+  const tabBarHeight = sp(70);
 
   const tabBarBaseStyle: ViewStyle = {
     backgroundColor: colors.surface,
@@ -81,9 +83,9 @@ export const MainTabNavigator = () => {
     borderWidth: 1,
     borderRadius: sp(24),
     marginHorizontal: sp(16),
-    marginBottom: sp(8),
+    marginBottom: sp(0),
     paddingTop: sp(12),
-    paddingBottom: bottomPadding,
+    paddingBottom: sp(4),
     height: tabBarHeight,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: sp(5) },
@@ -96,6 +98,7 @@ export const MainTabNavigator = () => {
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
+        tabBarHideOnKeyboard: true,
         tabBarShowLabel: false,
         tabBarStyle: shouldShowTabBar(route) ? tabBarBaseStyle : { display: 'none' },
         tabBarActiveTintColor: colors.primary,

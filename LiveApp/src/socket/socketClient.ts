@@ -31,9 +31,23 @@ class SocketManager {
     this.socket?.emit('chat:leave', { conversationId });
   }
 
+  markChatRead(conversationId: string) {
+    this.socket?.emit('chat:read', { conversationId });
+  }
+
   onChatMessage(handler: (msg: unknown) => void) {
     this.socket?.on('chat:message', handler);
     return () => this.socket?.off('chat:message', handler);
+  }
+
+  onChatRead(handler: (data: { conversationId: string; messageIds: string[] }) => void) {
+    this.socket?.on('chat:read', handler);
+    return () => this.socket?.off('chat:read', handler);
+  }
+
+  onPresence(handler: (data: { userId: string; online: boolean }) => void) {
+    this.socket?.on('presence:update', handler);
+    return () => this.socket?.off('presence:update', handler);
   }
 
   joinLive(roomId: string) {

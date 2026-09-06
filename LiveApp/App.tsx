@@ -11,6 +11,7 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 
 import AppContent from './src/navigation/AppContent.tsx';
 import {PermissionsProvider} from './src/permissions';
+import {KeyboardProvider} from 'react-native-keyboard-controller';
 
 function App() {
   const isDarkMode = useColorScheme() === 'dark';
@@ -18,10 +19,12 @@ function App() {
   return (
     <GestureHandlerRootView style={{flex: 1}}>
       <SafeAreaProvider>
+        <KeyboardProvider>
         <PermissionsProvider>
           <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
           <AppContent />
         </PermissionsProvider>
+        </KeyboardProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

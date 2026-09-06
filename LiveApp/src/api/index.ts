@@ -133,8 +133,8 @@ export const chatApi = {
   startConversation: (recipientId: string) =>
     apiClient.post('/chat/start', { recipientId }),
 
-  getMessages: (conversationId: string, page = 1) =>
-    apiClient.get(`/chat/messages/${conversationId}`, { params: { page } }),
+  getMessages: (conversationId: string, page = 1, limit = 15) =>
+    apiClient.get(`/chat/messages/${conversationId}`, { params: { page, limit } }),
 
   sendMessage: (conversationId: string, text: string, type: 'text' | 'image' = 'text', mediaUrl?: string) =>
     apiClient.post('/chat/send', { conversationId, text, type, mediaUrl }),
