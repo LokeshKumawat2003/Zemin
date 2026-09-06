@@ -1,151 +1,49 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Alert, Image, TouchableOpacity, KeyboardAvoidingView, Platform } from 'react-native';
-import { launchImageLibrary } from 'react-native-image-picker';
-import Icon from '@react-native-vector-icons/material-icons';
+import React from 'react';
+import { View, Text, StyleSheet, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Input } from '../../components/common/Input';
 import { Button } from '../../components/common/Button';
 import { colors, typography, spacing } from '../../theme';
-import { feedApi, uploadApi } from '../../api';
 import { HomeStackParamList } from '../../navigation/HomeStack';
 import { useResponsive } from '../../hooks/useResponsive';
 import { ScreenContainer } from '../../components/common/ScreenContainer';
-import { GiftEntryPicker } from '../../components/live/GiftEntryPicker';
-import type { GiftItem } from '../../components/live/LiveGiftEffects';
+import { useCreatePost } from '../../hooks/useCreatePost';
+import { CreatePostHeader } from '../../components/create/CreatePostHeader';
+import { PostMediaPicker } from '../../components/create/PostMediaPicker';
+import { PostVisibilitySettings } from '../../components/create/PostVisibilitySettings';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'CreatePost'>;
 
 export const CreatePostScreen = ({ navigation }: Props) => {
-  const [caption, setCaption] = useState('');
-  const [mediaUri, setMediaUri] = useState<string | null>(null);
-  const [visibility, setVisibility] = useState<'public' | 'ppv'>('public');
-  const [unlockGift, setUnlockGift] = useState<GiftItem | null>(null);
-  const [loading, setLoading] = useState(false);
   const { fs, sp } = useResponsive();
-
-  const pickImage = async () => {
-    const result = await launchImageLibrary({
-      mediaType: 'photo',
-      selectionLimit: 1,
-      quality: 0.9,
-    });
-    const uri = result.assets?.[0]?.uri;
-    if (uri) setMediaUri(uri);
-  };
-
-  const publish = async () => {
-    if (!caption.trim() && !mediaUri) {
-      Alert.alert('Add something first', 'Write a caption or choose an image.');
-      return;
-    }
-    if (visibility === 'ppv' && !unlockGift) {
-      Alert.alert('Choose an unlock gift', 'Viewers will send this gift to unlock your post.');
-      return;
-    }
-    setLoading(true);
-    try {
-      let uploadedUrl: string | undefined;
-      if (mediaUri) {
-        const formData = new FormData();
-        formData.append('file', { uri: mediaUri, type: 'image/jpeg', name: 'post-image.jpg' } as any);
-        formData.append('folder', 'posts');
-        const upload = await uploadApi.uploadMedia(formData);
-        uploadedUrl = upload.data?.url;
-        if (!uploadedUrl) throw new Error('Image upload failed');
-      }
-      const hasMedia = Boolean(uploadedUrl);
-      await feedApi.createPost({
-        type: hasMedia ? 'photo' : 'text',
-        caption: caption.trim(),
-        visibility,
-        isPPV: visibility === 'ppv',
-        unlockGiftId: visibility === 'ppv' ? unlockGift?.giftId : undefined,
-        media: hasMedia ? [{ url: uploadedUrl, type: 'image' }] : [],
-      });
-      Alert.alert('Published!', 'Your post is live', [
-        { text: 'OK', onPress: () => navigation.goBack() },
-      ]);
-    } catch (e: any) {
-      Alert.alert('Error', e?.error?.message || 'Could not publish');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const post = useCreatePost({ onPublished: () => navigation.goBack() });
 
   return (
-      <ScreenContainer centered={false} style={styles.container}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: sp(36) }]}>
-            <View style={styles.header}>
-              <View style={styles.headerIcon}><Icon name="edit-note" size={fs(26)} color={colors.primary} /></View>
-              <View style={styles.headerCopy}>
-                <Text style={styles.eyebrow}>CREATE</Text>
-                <Text style={styles.title}>New post</Text>
-                <Text style={styles.subtitle}>Share a moment with your audience.</Text>
-              </View>
-            </View>
+    <ScreenContainer centered={false} style={styles.container}>
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboard}>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={[styles.content, { paddingBottom: sp(36) }]}>
+          <CreatePostHeader fs={fs} />
 
-            <View style={styles.composerCard}>
-              <Text style={styles.sectionTitle}>Your post</Text>
-              <Input
-                label="Caption"
-                value={caption}
-                onChangeText={setCaption}
-                placeholder="What's on your mind? #hashtags"
-                multiline
-                style={styles.captionInput}
-              />
+          <View style={styles.composerCard}>
+            <Text style={styles.sectionTitle}>Your post</Text>
+            <Input
+              label="Caption"
+              value={post.caption}
+              onChangeText={post.setCaption}
+              placeholder="What's on your mind? #hashtags"
+              multiline
+              style={styles.captionInput}
+            />
 
-              <TouchableOpacity style={[styles.mediaPicker, mediaUri && styles.mediaPickerFilled]} onPress={pickImage} activeOpacity={0.82}>
-                {mediaUri ? (
-                  <>
-                    <Image source={{ uri: mediaUri }} style={styles.previewImage} />
-                    <View style={styles.previewShade} />
-                    <View style={styles.previewActions}>
-                      <View style={styles.previewAction}><Icon name="photo-camera" size={fs(17)} color="#fff" /><Text style={styles.previewActionText}>Change</Text></View>
-                      <TouchableOpacity style={styles.removeAction} onPress={() => setMediaUri(null)}><Icon name="delete-outline" size={fs(19)} color="#fff" /></TouchableOpacity>
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <View style={styles.mediaIcon}><Icon name="add-photo-alternate" size={fs(28)} color={colors.primary} /></View>
-                    <Text style={styles.mediaTitle}>Add a photo</Text>
-                    <Text style={styles.mediaHint}>Choose an image from your device</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
+            <PostMediaPicker fs={fs} mediaUri={post.mediaUri} onPick={post.pickImage} onRemove={() => post.setMediaUri(null)} />
+          </View>
 
-            <View style={styles.settingsCard}>
-              <Text style={styles.sectionTitle}>Who can see this?</Text>
-              <View style={styles.visibilityRow}>
-                {(['public', 'ppv'] as const).map((value) => {
-                  const active = visibility === value;
-                  const iconName = value === 'public' ? 'public' : 'lock';
-                  const label = value === 'public' ? 'Public' : 'PPV';
-                  return (
-                    <TouchableOpacity key={value} style={[styles.visibilityButton, active && styles.visibilityButtonActive]} onPress={() => setVisibility(value)} activeOpacity={0.8}>
-                      <Icon name={iconName} size={fs(19)} color={active ? '#fff' : colors.textSecondary} />
-                      <Text style={[styles.visibilityText, active && styles.visibilityTextActive]}>{label}</Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
-              {visibility === 'ppv' && (
-                <GiftEntryPicker
-                  selectedGiftId={unlockGift?.giftId}
-                  onSelect={setUnlockGift}
-                  label="Choose unlock gift"
-                  hint="Viewers send this gift to unlock your post."
-                  selectedLabel="Unlock gift"
-                />
-              )}
-            </View>
+          <PostVisibilitySettings fs={fs} visibility={post.visibility} unlockGift={post.unlockGift} onVisibilityChange={post.setVisibility} onGiftChange={post.setUnlockGift} />
 
-            <Button title="Publish post" onPress={publish} loading={loading} style={styles.publish} />
-          </ScrollView>
-        </KeyboardAvoidingView>
-      </ScreenContainer>
+          <Button title="Publish post" onPress={post.publish} loading={post.loading} style={styles.publish} />
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </ScreenContainer>
   );
 };
 
