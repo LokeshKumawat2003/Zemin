@@ -1,23 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  ActivityIndicator,
-  Image,
-} from 'react-native';
-import Icon from '@react-native-vector-icons/material-icons';
+import React, { useMemo } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { colors as baseColors, typography } from '../../theme';
-import { chatApi } from '../../api';
 import { useAppSelector } from '../../redux/hooks';
 import { ChatStackParamList } from '../../navigation/types';
-import { socketManager } from '../../socket/socketClient';
 import { useResponsive } from '../../hooks/useResponsive';
+import { useChatList } from '../../hooks/useChatList';
+import { ChatListHeader } from '../../components/chat/ChatListHeader';
+import { ChatConversationList } from '../../components/chat/ChatConversationList';
 
 type Props = NativeStackScreenProps<ChatStackParamList, 'ChatList'>;
 
@@ -36,339 +26,73 @@ const colors = {
   border: '#2a2530',
 };
 
-interface OnlineFriend {
-  id: string;
-  username: string;
-  displayName: string;
-  avatar?: string;
-  isOnline: boolean;
-}
-
-interface ConversationItem {
-  conversationId: string;
-  participantId: string;
-  username: string;
-  displayName: string;
-  verified: boolean;
-  avatar?: string;
-  isOnline: boolean;
-  lastMessageText: string;
-  lastMessageIsMedia: boolean;
-  timestampLabel: string;
-  unreadCount: number;
-  pinned: boolean;
-}
-
-const formatTimestamp = (iso?: string) => {
-  if (!iso) return '';
-  const date = new Date(iso);
-  const now = new Date();
-  const isToday = date.toDateString() === now.toDateString();
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const isYesterday = date.toDateString() === yesterday.toDateString();
-
-  if (isToday) {
-    return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-  }
-  if (isYesterday) return 'Yesterday';
-  return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
-};
-
 export const ChatListScreen = ({ navigation }: Props) => {
   const user = useAppSelector((s) => s.auth.user);
   const { fs, sp, contentMaxWidth } = useResponsive();
   const styles = useMemo(() => createStyles(fs, sp), [fs, sp]);
-
-  const [onlineFriends, setOnlineFriends] = useState<OnlineFriend[]>([]);
-  const [conversations, setConversations] = useState<ConversationItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [search, setSearch] = useState('');
-  const [filter, setFilter] = useState<'all' | 'unread'>('all');
-
-  const updateConversationUnread = useCallback((conversationId: string, delta: number, replaceValue?: number) => {
-    setConversations((prev) =>
-      prev.map((conversation) =>
-        conversation.conversationId === conversationId
-          ? {
-              ...conversation,
-              unreadCount: replaceValue !== undefined ? Math.max(0, replaceValue) : Math.max(0, conversation.unreadCount + delta),
-            }
-          : conversation
-      )
-    );
-  }, []);
-
-  const upsertConversationMessage = useCallback((msg: any) => {
-    setConversations((prev) => {
-      const timestampLabel = formatTimestamp(msg.sentAt);
-      const conversationIndex = prev.findIndex(
-        (item) => item.conversationId === msg.conversationId || item.participantId === String(msg.senderId)
-      );
-      const existing = conversationIndex >= 0 ? prev[conversationIndex] : undefined;
-
-      const updatedConversation: ConversationItem = {
-        conversationId: msg.conversationId,
-        participantId: String(msg.senderId || existing?.participantId || ''),
-        username: msg.sender?.username ?? existing?.username ?? 'unknown',
-        displayName: msg.sender?.displayName ?? existing?.displayName ?? msg.sender?.username ?? 'Unknown',
-        verified: existing?.verified ?? !!msg.sender?.verified,
-        avatar: msg.sender?.avatarUrl ?? msg.sender?.avatar ?? existing?.avatar,
-        isOnline: existing?.isOnline ?? false,
-        lastMessageText: msg.text ?? existing?.lastMessageText ?? 'New message',
-        lastMessageIsMedia: msg.type !== 'text',
-        timestampLabel,
-        unreadCount: Math.max(0, (existing?.unreadCount ?? 0) + 1),
-        pinned: existing?.pinned ?? false,
-      };
-
-      if (conversationIndex === -1) {
-        return [updatedConversation, ...prev];
-      }
-
-      const next = [...prev];
-      next[conversationIndex] = updatedConversation;
-      if (conversationIndex !== 0) {
-        next.splice(conversationIndex, 1);
-        next.unshift(updatedConversation);
-      }
-      return next;
-    });
-  }, []);
-
-  const loadConversations = useCallback(async () => {
-    if (!refreshing) {
-      setLoading(true);
-    }
-    try {
-      const convRes = await chatApi.getConversations();
-      const rawConvos = convRes.data || [];
-
-      const uniqueConversations = new Map<string, ConversationItem>();
-      rawConvos.forEach((c: any) => {
-        const participantId = String(c.participant?.id || c.participant?._id || '');
-        if (!participantId || uniqueConversations.has(participantId)) return;
-        uniqueConversations.set(participantId, {
-          conversationId: String(c.conversationId),
-          participantId,
-          username: c.participant?.username ?? 'unknown',
-          displayName: c.participant?.displayName ?? c.participant?.username ?? 'Unknown',
-          verified: !!(c.participant?.isVerified ?? c.participant?.verified),
-          avatar: c.participant?.avatar ?? c.participant?.avatarUrl,
-          isOnline: !!c.participant?.isOnline,
-          lastMessageText: c.lastMessage?.text ?? 'No messages yet',
-          lastMessageIsMedia: c.lastMessage?.type !== undefined && c.lastMessage?.type !== 'text',
-          timestampLabel: formatTimestamp(c.lastMessage?.sentAt),
-          unreadCount: c.unreadCount ?? 0,
-          pinned: !!c.pinned,
-        });
-      });
-      setConversations(Array.from(uniqueConversations.values()));
-
-      setOnlineFriends([]);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, [refreshing]);
-
-  useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
-
-  useEffect(() => {
-    socketManager.connect();
-
-    const cleanup = socketManager.onChatMessage((msg: any) => {
-      if (!msg?.conversationId) return;
-      if (msg?.senderId === user?.id || msg?.userId === user?.id || msg?.isMine) return;
-
-      upsertConversationMessage(msg);
-    });
-
-    return () => {
-      cleanup?.();
-    };
-  }, [user?.id, upsertConversationMessage]);
-
-  const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    void loadConversations();
-  }, [loadConversations]);
+  const {
+    onlineFriends,
+    conversations,
+    visibleConversations,
+    loading,
+    refreshing,
+    search,
+    filter,
+    setSearch,
+    setFilter,
+    onRefresh,
+    updateConversationUnread,
+  } = useChatList({ userId: user?.id });
 
   const handleConversationPress = (conversationId: string) => {
     updateConversationUnread(conversationId, 0, 0);
+    const conversation = conversations.find(item => item.conversationId === conversationId);
     navigation.navigate('ChatRoom', {
       conversationId,
-      recipientId: conversations.find((item) => item.conversationId === conversationId)?.participantId || '',
-      recipientName: conversations.find((item) => item.conversationId === conversationId)?.displayName || 'Chat',
-      recipientAvatar: conversations.find((item) => item.conversationId === conversationId)?.avatar,
-      recipientOnline: conversations.find((item) => item.conversationId === conversationId)?.isOnline,
+      recipientId: conversation?.participantId || '',
+      recipientName: conversation?.displayName || 'Chat',
+      recipientAvatar: conversation?.avatar,
+      recipientOnline: conversation?.isOnline,
     });
   };
 
   const handleNewChatPress = () => {
     const parentNavigator = navigation.getParent();
-
     if (parentNavigator) {
       (parentNavigator as any).navigate('Discover', { screen: 'Search' });
       return;
     }
-
     navigation.navigate('ChatList' as any);
   };
-
-  const visibleConversations = conversations.filter((conversation) => {
-    const query = search.trim().toLowerCase();
-    const matchesSearch = !query || `${conversation.displayName} ${conversation.username}`.toLowerCase().includes(query);
-    const matchesFilter = filter === 'all' || conversation.unreadCount > 0;
-    return matchesSearch && matchesFilter;
-  });
-
-  const renderListHeader = () => (
-    <View>
-      {/* Online friends row */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.onlineRow}
-      >
-        {/* <TouchableOpacity style={styles.friendItem} onPress={handleNewChatPress}>
-          <View style={styles.newChatCircle}>
-            <Text style={styles.newChatIcon}>+</Text>
-            <View style={styles.newChatBadge}>
-              <Text style={styles.newChatBadgeText}>+</Text>
-            </View>
-          </View>
-          <Text style={styles.friendLabel}>New Chat</Text>
-        </TouchableOpacity> */}
-
-        {onlineFriends.map((f) => (
-          <TouchableOpacity
-            key={f.id}
-            style={styles.friendItem}
-            onPress={() => navigation.navigate('CreatorProfile' as any, { username: f.username })}
-          >
-            <View style={styles.friendAvatarWrap}>
-              {f.avatar ? (
-                <Image source={{ uri: f.avatar }} style={styles.friendAvatar} />
-              ) : (
-                <View style={[styles.friendAvatar, styles.friendAvatarPlaceholder]} />
-              )}
-              {f.isOnline && <View style={styles.onlineDot} />}
-            </View>
-            <Text style={styles.friendLabel} numberOfLines={1}>
-              {f.displayName}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-    </View>
-  );
 
   return (
     <View style={styles.container}>
       <View style={[styles.contentWrap, { maxWidth: contentMaxWidth }]}>
-      <View style={styles.topBar}>
-        <View>
-          <Text style={styles.eyebrow}>YOUR INBOX</Text>
-          <Text style={styles.headerTitle}>Messages</Text>
-        </View>
-        <TouchableOpacity onPress={handleNewChatPress} style={styles.composeButton} hitSlop={8}>
-          <Icon name="edit" size={20} color="#fff" />
-        </TouchableOpacity>
-      </View>
+      <ChatListHeader
+        fs={fs}
+        sp={sp}
+        search={search}
+        filter={filter}
+        hasUnread={conversations.some(conversation => conversation.unreadCount > 0)}
+        onSearchChange={setSearch}
+        onFilterChange={setFilter}
+        onClearSearch={() => setSearch('')}
+        onCompose={handleNewChatPress}
+      />
 
-      <View style={styles.searchBox}>
-        <Icon name="search" size={20} color={colors.textSecondary} />
-        <TextInput
-          value={search}
-          onChangeText={setSearch}
-          placeholder="Search conversations"
-          placeholderTextColor={colors.textSecondary}
-          style={styles.searchInput}
-          returnKeyType="search"
-        />
-        {search.length > 0 && (
-          <TouchableOpacity onPress={() => setSearch('')} hitSlop={8}>
-            <Icon name="close" size={18} color={colors.textSecondary} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      <View style={styles.filterRow}>
-        {(['all', 'unread'] as const).map((key) => (
-          <TouchableOpacity
-            key={key}
-            onPress={() => setFilter(key)}
-            style={[styles.filterChip, filter === key && styles.filterChipActive]}
-          >
-            <Text style={[styles.filterText, filter === key && styles.filterTextActive]}>
-              {key === 'all' ? 'All messages' : 'Unread'}
-            </Text>
-            {key === 'unread' && conversations.some((conversation) => conversation.unreadCount > 0) && (
-              <View style={styles.filterDot} />
-            )}
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      {loading ? (
-        <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
-      ) : (
-        <FlatList
-          data={visibleConversations}
-          keyExtractor={(item) => item.conversationId}
-          ListHeaderComponent={renderListHeader}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-          renderItem={({ item }) => (
-            <TouchableOpacity style={styles.row} onPress={() => handleConversationPress(item.conversationId)} activeOpacity={0.75}>
-              <View style={styles.avatarWrap}>
-                {item.avatar ? (
-                  <Image source={{ uri: item.avatar }} style={styles.avatar} />
-                ) : (
-                  <View style={[styles.avatar, styles.avatarPlaceholder]} />
-                )}
-                {item.isOnline && <View style={styles.rowOnlineDot} />}
-              </View>
-
-              <View style={styles.rowContent}>
-                <View style={styles.rowTopLine}>
-                  <View style={styles.nameRow}>
-                    <Text style={styles.name}>{item.displayName}</Text>
-                    {item.verified && <Icon name="verified" size={14} color={colors.primary} />}
-                  </View>
-                  <Text style={styles.timestamp}>{item.timestampLabel}</Text>
-                </View>
-                <Text
-                  style={[styles.preview, item.lastMessageIsMedia && styles.previewMedia]}
-                  numberOfLines={1}
-                >
-                  {item.lastMessageIsMedia ? `${item.lastMessageText} 🖼️` : item.lastMessageText}
-                </Text>
-              </View>
-
-              <View style={styles.rowRight}>
-                {item.unreadCount > 0 ? (
-                  <View style={styles.badge}>
-                    <Text style={styles.badgeText}>{item.unreadCount > 4 ? '4+' : item.unreadCount}</Text>
-                  </View>
-                ) : item.pinned ? (
-                  <Text style={styles.pinIcon}>📌</Text>
-                ) : null}
-              </View>
-            </TouchableOpacity>
-          )}
-          ListEmptyComponent={
-            <Text style={styles.empty}>
-              {search || filter === 'unread' ? 'No conversations match this filter.' : 'No conversations yet. Visit a creator profile and tap Message.'}
-            </Text>
-          }
-          contentContainerStyle={styles.list}
-        />
-      )}
+      <ChatConversationList
+        fs={fs}
+        sp={sp}
+        loading={loading}
+        refreshing={refreshing}
+        conversations={visibleConversations}
+        onlineFriends={onlineFriends}
+        search={search}
+        filter={filter}
+        onRefresh={onRefresh}
+        onFriendPress={username => navigation.navigate('CreatorProfile' as any, { username })}
+        onConversationPress={handleConversationPress}
+      />
 
       </View>
     </View>
