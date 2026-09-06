@@ -1,7 +1,7 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { HomeFeedScreen } from '../screens/home/HomeFeedScreen';
-import { PostDetailScreen } from '../screens/home/PostDetailScreen';
+import { PostDetailScreen } from '../screens/create/PostDetailScreen';
 import { CreatePostScreen } from '../screens/create/CreatePostScreen';
 import { CreatorProfileScreen } from '../screens/profile/CreatorProfileScreen';
 import { FollowListScreen } from '../screens/profile/FollowListScreen';

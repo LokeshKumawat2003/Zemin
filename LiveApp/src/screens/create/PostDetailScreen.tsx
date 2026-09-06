@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -7,77 +7,18 @@ import {
   Image,
   TextInput,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { Button } from '../../components/common/Button';
 import { colors, typography, spacing } from '../../theme';
-import { feedApi, unwrapApiResponse } from '../../api';
 import { HomeStackParamList } from '../../navigation/HomeStack';
+import { usePostDetail } from '../../hooks/usePostDetail';
 
 type Props = NativeStackScreenProps<HomeStackParamList, 'PostDetail'>;
 
 export const PostDetailScreen = ({ route, navigation }: Props) => {
   const { postId } = route.params;
-  const [post, setPost] = useState<any>(null);
-  const [comments, setComments] = useState<any[]>([]);
-  const [commentText, setCommentText] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [unlocking, setUnlocking] = useState(false);
-
-  const load = async () => {
-    try {
-      const [postRes, commentsRes] = await Promise.all([
-        feedApi.getPost(postId),
-        feedApi.getComments(postId),
-      ]);
-      setPost(postRes.data);
-      setComments(commentsRes.data || []);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    load();
-  }, [postId]);
-
-  const submitComment = async () => {
-    if (!commentText.trim() || post?.isLocked) return;
-    setSending(true);
-    try {
-      await feedApi.addComment(postId, commentText.trim());
-      setCommentText('');
-      load();
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const toggleLike = async () => {
-    if (!post || post.isLocked) return;
-    if (post.userHasLiked) await feedApi.unlikePost(postId);
-    else await feedApi.likePost(postId);
-    load();
-  };
-
-  const unlockPost = async () => {
-    setUnlocking(true);
-    try {
-      const res = unwrapApiResponse<any>(await feedApi.purchasePpv(postId));
-      if (res?.purchased) {
-        Alert.alert('Unlocked!', 'You can now view this post.');
-        await load();
-      } else {
-        Alert.alert('Error', 'Could not unlock post');
-      }
-    } catch (e: any) {
-      Alert.alert('Error', e?.error?.message || 'Could not unlock post');
-    } finally {
-      setUnlocking(false);
-    }
-  };
+  const { post, comments, commentText, setCommentText, loading, sending, unlocking, submitComment, toggleLike, unlockPost } = usePostDetail(postId);
 
   if (loading) {
     return <ActivityIndicator color={colors.primary} style={{ flex: 1 }} />;
