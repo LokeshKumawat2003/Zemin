@@ -3,9 +3,9 @@ const { verifyAccessToken } = require('../utils/jwt.util');
 const { allowedOrigins } = require('../config/env');
 const Conversation = require('../models/Conversation.model');
 const Message = require('../models/Message.model');
+const presenceService = require('../services/presence.service');
 
 let io;
-const onlineUsers = new Map();
 
 const emitLiveViewerCount = (roomId) => {
   if (!roomId) return;
@@ -37,7 +37,7 @@ const initSocket = (server) => {
 
   io.on('connection', (socket) => {
     socket.join(`user:${socket.userId}`);
-    onlineUsers.set(socket.userId, (onlineUsers.get(socket.userId) || 0) + 1);
+    presenceService.markOnline(socket.userId);
     io.emit('presence:update', { userId: socket.userId, online: true });
 
     socket.on('live:join', ({ roomId }) => {
@@ -76,7 +76,7 @@ const initSocket = (server) => {
       socket.join(`chat:${conversationId}`);
       conversation.participants.forEach((userId) => {
         const id = userId.toString();
-        socket.emit('presence:update', { userId: id, online: onlineUsers.has(id) });
+        socket.emit('presence:update', { userId: id, online: presenceService.isOnline(id) });
       });
     });
 
@@ -118,11 +118,9 @@ const initSocket = (server) => {
     });
 
     socket.on('disconnect', () => {
-      const connections = (onlineUsers.get(socket.userId) || 1) - 1;
-      if (connections > 0) {
-        onlineUsers.set(socket.userId, connections);
-      } else {
-        onlineUsers.delete(socket.userId);
+      const wasOnline = presenceService.isOnline(socket.userId);
+      presenceService.markOffline(socket.userId);
+      if (wasOnline && !presenceService.isOnline(socket.userId)) {
         io.emit('presence:update', { userId: socket.userId, online: false });
       }
 

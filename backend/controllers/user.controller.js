@@ -2,6 +2,8 @@ const { userService } = require('../services/user.service');
 const Post = require('../models/Post.model');
 const { getPagination } = require('../utils/pagination.util');
 const { success, paginated } = require('../utils/response.util');
+const User = require('../models/User.model');
+const AppError = require('../utils/AppError');
 
 exports.updateProfile = async (req, res, next) => {
   try {
@@ -25,6 +27,27 @@ exports.registerPushToken = async (req, res, next) => {
   try {
     const data = await userService.registerPushToken(req.user._id, req.body.token);
     success(res, data, 'Push token registered');
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.blockUser = async (req, res, next) => {
+  try {
+    if (req.user._id.toString() === req.params.userId) {
+      throw new AppError('VALIDATION_ERROR', 400, 'Cannot block yourself');
+    }
+
+    const target = await User.findById(req.params.userId).select('_id isDeleted');
+    if (!target || target.isDeleted) {
+      throw new AppError('NOT_FOUND', 404, 'User not found');
+    }
+
+    await User.findByIdAndUpdate(req.user._id, {
+      $addToSet: { blockedUsers: target._id },
+    });
+
+    success(res, { blocked: true, userId: target._id }, 'User blocked');
   } catch (err) {
     next(err);
   }

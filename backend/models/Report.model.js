@@ -21,6 +21,7 @@ const reportSchema = new mongoose.Schema(
         'hate_speech',
         'fake_account',
         'self_harm',
+        'fraud',
         'scam',
         'copyright',
         'other',

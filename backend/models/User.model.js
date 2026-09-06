@@ -47,6 +47,7 @@ const userSchema = new mongoose.Schema(
       theme: { type: String, default: 'dark' },
     },
     fcmTokens: [String],
+    blockedUsers: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     loginAttempts: { type: Number, default: 0 },
     lockUntil: Date,
     isDeleted: { type: Boolean, default: false },

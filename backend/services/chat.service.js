@@ -3,6 +3,7 @@ const Message = require('../models/Message.model');
 const User = require('../models/User.model');
 const AppError = require('../utils/AppError');
 const notificationService = require('./notification.service');
+const presenceService = require('./presence.service');
 
 const getUnreadCount = (unreadCounts, userId) => {
   if (!unreadCounts) return 0;
@@ -43,6 +44,7 @@ class ChatService {
                 avatar: participant.avatar,
                 isVerified: participant.isVerified,
                 isCreator: participant.isCreator,
+                isOnline: presenceService.isOnline(participant._id),
               }
             : null,
           lastMessage: latestMessage

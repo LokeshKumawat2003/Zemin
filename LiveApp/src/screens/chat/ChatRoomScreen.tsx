@@ -24,7 +24,7 @@ import { launchImageLibrary } from 'react-native-image-picker';
 import RNFS from 'react-native-fs';
 import { RESULTS } from 'react-native-permissions';
 import { colors as baseColors } from '../../theme';
-import { chatApi, uploadApi } from '../../api';
+import { chatApi, reportApi, uploadApi, userApi } from '../../api';
 import { socketManager } from '../../socket/socketClient';
 import { useAppSelector } from '../../redux/hooks';
 import { usePermissions } from '../../permissions';
@@ -57,9 +57,7 @@ type Props = NativeStackScreenProps<ChatStackParamList, 'ChatRoom'>;
 
 const AVATAR_URI = 'https://i.pravatar.cc/100?img=12';
 const MESSAGE_PAGE_SIZE = 15;
-const chatMessagesCache = new Map<string, Message[]>();
-const chatNextPageCache = new Map<string, number>();
-const chatHasMoreCache = new Map<string, boolean>();
+const REPORT_REASONS = ['spam', 'fraud', 'harassment', 'inappropriate', 'other'] as const;
 
 /**
  * ----------------------------------------------------------------
@@ -101,29 +99,31 @@ const mapApiMessage = (item: any, currentUserId?: string): Message => {
  * Screen
  * ----------------------------------------------------------------
  */
-export const ChatRoomScreen = ({ route }: Props) => {
+export const ChatRoomScreen = ({ navigation, route }: Props) => {
   const { conversationId, recipientId, recipientName, recipientAvatar, recipientOnline } = route.params;
   const currentUserId = useAppSelector(state => state.auth.user?.id);
   const [message, setMessage] = useState('');
-  const cachedMessages = chatMessagesCache.get(conversationId);
-  const hasCachedMessages = Boolean(cachedMessages?.length);
-  const [messages, setMessages] = useState<Message[]>(() => cachedMessages || []);
-  const [loadingMessages, setLoadingMessages] = useState(!hasCachedMessages);
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(true);
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const [hasOlderMessages, setHasOlderMessages] = useState(
-    chatHasMoreCache.get(conversationId) ?? true
-  );
+  const [hasOlderMessages, setHasOlderMessages] = useState(true);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [isRecipientOnline, setIsRecipientOnline] = useState(Boolean(recipientOnline));
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [downloadingImage, setDownloadingImage] = useState(false);
+  const [showChatActions, setShowChatActions] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [reportReason, setReportReason] = useState('spam');
+  const [reportDescription, setReportDescription] = useState('');
+  const [reporting, setReporting] = useState(false);
   const inputRef = useRef<TextInput>(null);
   const chatScrollRef = useRef<KeyboardChatScrollViewRef>(null);
-  const nextMessagePage = useRef(chatNextPageCache.get(conversationId) ?? 2);
+  const nextMessagePage = useRef(2);
   const scrollOffset = useRef(0);
   const contentHeight = useRef(0);
   const viewportHeight = useRef(0);
+  const userStartedScrolling = useRef(false);
   const preserveScrollAfterPrepend = useRef<{ offset: number; height: number } | null>(null);
   const scrollToEndAfterLayout = useRef(true);
   const { ensurePermission } = usePermissions();
@@ -147,12 +147,12 @@ export const ChatRoomScreen = ({ route }: Props) => {
   };
 
   useEffect(() => {
-    chatMessagesCache.set(conversationId, messages);
-  }, [conversationId, messages]);
-
-  useEffect(() => {
     let active = true;
-    setLoadingMessages(!hasCachedMessages);
+    setLoadingMessages(true);
+    setMessages([]);
+    setHasOlderMessages(true);
+    nextMessagePage.current = 2;
+    scrollToEndAfterLayout.current = true;
 
     const loadMessages = async () => {
       try {
@@ -160,20 +160,14 @@ export const ChatRoomScreen = ({ route }: Props) => {
         if (active) {
           const serverMessages = getMessageItems(response).map(item => mapApiMessage(item, currentUserId));
           const totalPages = (response as any)?.meta?.totalPages;
-          if (!hasCachedMessages) {
-            nextMessagePage.current = 2;
-            chatNextPageCache.set(conversationId, 2);
-          }
           const hasMore = totalPages ? totalPages > 1 : serverMessages.length === MESSAGE_PAGE_SIZE;
           setHasOlderMessages(hasMore);
-          chatHasMoreCache.set(conversationId, hasMore);
-          if (!hasCachedMessages) scrollToEndAfterLayout.current = true;
-          setMessages(previous => {
-            const serverMessageIds = new Set(serverMessages.map(item => item.id));
-            return [
-              ...serverMessages,
-              ...previous.filter(item => !serverMessageIds.has(item.id)),
-            ];
+          scrollToEndAfterLayout.current = true;
+          setMessages(serverMessages);
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              chatScrollRef.current?.scrollToEnd({ animated: false });
+            });
           });
           socketManager.markChatRead(conversationId);
         }
@@ -244,7 +238,6 @@ export const ChatRoomScreen = ({ route }: Props) => {
       const totalPages = (response as any)?.meta?.totalPages;
       if (!olderMessages.length) {
         setHasOlderMessages(false);
-        chatHasMoreCache.set(conversationId, false);
         return;
       }
 
@@ -253,12 +246,10 @@ export const ChatRoomScreen = ({ route }: Props) => {
         height: previousHeight,
       };
       nextMessagePage.current += 1;
-      chatNextPageCache.set(conversationId, nextMessagePage.current);
       const hasMore = totalPages
         ? nextMessagePage.current - 1 < totalPages
         : olderMessages.length === MESSAGE_PAGE_SIZE;
       setHasOlderMessages(hasMore);
-      chatHasMoreCache.set(conversationId, hasMore);
       scrollToEndAfterLayout.current = false;
       setMessages(previous => {
         const existingIds = new Set(previous.map(item => item.id));
@@ -276,7 +267,7 @@ export const ChatRoomScreen = ({ route }: Props) => {
     scrollOffset.current = y;
     const distanceFromBottom = contentHeight.current - (y + viewportHeight.current);
     setShowScrollToBottom(distanceFromBottom > 100);
-    if (y <= 80) void loadOlderMessages();
+    if (userStartedScrolling.current && y <= 80) void loadOlderMessages();
   };
 
   const handleContentSizeChange = (_width: number, height: number) => {
@@ -296,8 +287,6 @@ export const ChatRoomScreen = ({ route }: Props) => {
       return;
     }
 
-    if (height <= viewportHeight.current + 10) void loadOlderMessages();
-
     if (scrollToEndAfterLayout.current) scrollToLatestMessage();
   };
 
@@ -312,6 +301,55 @@ export const ChatRoomScreen = ({ route }: Props) => {
   const scrollToBottom = () => {
     chatScrollRef.current?.scrollToEnd({ animated: true });
     setShowScrollToBottom(false);
+  };
+
+  const reportUser = async () => {
+    if (reporting) return;
+
+    try {
+      setReporting(true);
+      await reportApi.create({
+        targetType: 'user',
+        targetId: recipientId,
+        reason: reportReason,
+        description: reportDescription.trim() || undefined,
+      });
+      setShowReportModal(false);
+      setReportDescription('');
+      Alert.alert('Reported', 'Thank you. Our team will review this report.');
+    } catch {
+      Alert.alert('Report failed', 'Unable to submit this report.');
+    } finally {
+      setReporting(false);
+    }
+  };
+
+  const blockUser = async () => {
+    try {
+      await userApi.blockUser(recipientId);
+      Alert.alert('User blocked', `${recipientName} has been blocked.`, [
+        { text: 'OK', onPress: () => navigation.goBack() },
+      ]);
+    } catch {
+      Alert.alert('Block failed', 'Unable to block this user.');
+    }
+  };
+
+  const openChatActions = () => {
+    setShowChatActions(previous => !previous);
+  };
+
+  const openReportModal = () => {
+    setShowChatActions(false);
+    setShowReportModal(true);
+  };
+
+  const confirmBlockUser = () => {
+    setShowChatActions(false);
+    Alert.alert('Block user?', `You will stop receiving messages from ${recipientName}.`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Block', style: 'destructive', onPress: blockUser },
+    ]);
   };
 
   const downloadSelectedImage = async () => {
@@ -558,30 +596,54 @@ export const ChatRoomScreen = ({ route }: Props) => {
     <View style={styles.container}>
       {/* ---------------- HEADER ---------------- */}
       <View style={styles.header}>
-        <Pressable style={styles.headerIconButton} onPress={() => {}} hitSlop={8}>
-          <Icon name="arrow-back" size={22} color={colors.textPrimary} />
+        <Pressable style={styles.headerIconButton} onPress={() => navigation.goBack()} hitSlop={8}>
+          <Icon name="arrow-back" size={18} color={colors.textPrimary} />
         </Pressable>
 
-        <View style={styles.avatarWrap}>
-          <Image source={{ uri: recipientAvatar || AVATAR_URI }} style={styles.headerAvatar} />
-          {isRecipientOnline && <View style={styles.onlineBadge} />}
+        <View style={styles.headerProfile}>
+          <View style={styles.avatarWrap}>
+            <Image source={{ uri: recipientAvatar || AVATAR_URI }} style={styles.headerAvatar} />
+            {isRecipientOnline && <View style={styles.onlineBadge} />}
+          </View>
+          <View style={styles.userInfo}>
+            <Text numberOfLines={1} style={styles.userName}>
+              {recipientName?.trim() || 'Chat'}
+            </Text>
+            <Text numberOfLines={1} style={styles.onlineText}>
+              {isRecipientOnline ? 'Active now' : 'Last seen recently'}
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.userInfo}>
-          <Text numberOfLines={1} style={styles.userName}>
-            {recipientName}
-          </Text>
-          {isRecipientOnline && <Text style={styles.onlineText}>Active now</Text>}
+        <View style={styles.headerActions}>
+          <Pressable style={styles.actionIconButton} hitSlop={8}>
+            <Icon name="call" size={16} color={colors.textPrimary} />
+          </Pressable>
+          <Pressable style={styles.actionIconButton} onPress={openChatActions} hitSlop={8}>
+            <Icon name="more-vert" size={18} color={colors.textPrimary} />
+          </Pressable>
         </View>
-
-        <Pressable style={styles.headerIconButton} hitSlop={8}>
-          <Icon name="call" size={20} color={colors.primary} />
-        </Pressable>
-
-        <Pressable style={styles.headerIconButton} hitSlop={8}>
-          <Icon name="videocam" size={22} color={colors.primary} />
-        </Pressable>
       </View>
+
+      {showChatActions && (
+        <>
+          <Pressable
+            style={styles.actionMenuBackdrop}
+            onPress={() => setShowChatActions(false)}
+            accessibilityLabel="Close chat actions"
+          />
+          <View style={styles.chatActionMenu}>
+            <Pressable style={styles.chatActionItem} onPress={openReportModal}>
+              <Icon name="flag" size={18} color={colors.textPrimary} />
+              <Text style={styles.chatActionText}>Report</Text>
+            </Pressable>
+            <Pressable style={styles.chatActionItem} onPress={confirmBlockUser}>
+              <Icon name="block" size={18} color={colors.error} />
+              <Text style={[styles.chatActionText, styles.dangerText]}>Block</Text>
+            </Pressable>
+          </View>
+        </>
+      )}
 
       {/* ---------------- CHAT ---------------- */}
       <KeyboardChatScrollView
@@ -590,12 +652,14 @@ export const ChatRoomScreen = ({ route }: Props) => {
         keyboardDismissMode="interactive"
         showsVerticalScrollIndicator={false}
         onScroll={handleScroll}
+        onScrollBeginDrag={() => {
+          userStartedScrolling.current = true;
+        }}
         onScrollEndDrag={handleScroll}
         onMomentumScrollEnd={handleScroll}
         scrollEventThrottle={16}
         onLayout={event => {
           viewportHeight.current = event.nativeEvent.layout.height;
-          if (contentHeight.current <= viewportHeight.current + 10) void loadOlderMessages();
         }}
         onContentSizeChange={handleContentSizeChange}
       >
@@ -702,6 +766,75 @@ export const ChatRoomScreen = ({ route }: Props) => {
           </Pressable>
         </View>
       </Modal>
+
+      <Modal
+        visible={showReportModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowReportModal(false)}
+      >
+        <View style={styles.reportModalBackdrop}>
+          <View style={styles.reportModalCard}>
+            <View style={styles.reportModalHeader}>
+              <View>
+                <Text style={styles.reportModalTitle}>Report user</Text>
+                <Text style={styles.reportModalSubtitle}>What happened with {recipientName}?</Text>
+              </View>
+              <Pressable onPress={() => setShowReportModal(false)} hitSlop={8}>
+                <Icon name="close" size={22} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <Text style={styles.reportLabel}>Reason</Text>
+            <View style={styles.reportReasons}>
+              {REPORT_REASONS.map(reason => (
+                <Pressable
+                  key={reason}
+                  style={[styles.reportReason, reportReason === reason && styles.reportReasonSelected]}
+                  onPress={() => setReportReason(reason)}
+                >
+                  <Text
+                    style={[
+                      styles.reportReasonText,
+                      reportReason === reason && styles.reportReasonTextSelected,
+                    ]}
+                  >
+                    {reason.charAt(0).toUpperCase() + reason.slice(1)}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Text style={styles.reportLabel}>Description</Text>
+            <TextInput
+              value={reportDescription}
+              onChangeText={setReportDescription}
+              placeholder="Tell us more (optional)"
+              placeholderTextColor={colors.textSecondary}
+              multiline
+              maxLength={500}
+              style={styles.reportDescription}
+            />
+
+            <View style={styles.reportModalActions}>
+              <Pressable
+                style={styles.reportCancelButton}
+                onPress={() => setShowReportModal(false)}
+                disabled={reporting}
+              >
+                <Text style={styles.reportCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.reportSubmitButton, reporting && styles.reportSubmitDisabled]}
+                onPress={reportUser}
+                disabled={reporting}
+              >
+                {reporting ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.reportSubmitText}>Submit</Text>}
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -733,30 +866,86 @@ const styles = StyleSheet.create({
     height: 64,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    backgroundColor: colors.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.03,
-    shadowRadius: 3,
-    elevation: 1,
+    paddingHorizontal: 6,
+    backgroundColor: colors.background,
   },
   headerIconButton: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceAlt,
+  },
+  headerProfile: {
+    flex: 1,
+    minWidth: 0,
+    height: 48,
+    marginLeft: 6,
+    marginRight: 4,
+    paddingHorizontal: 6,
+    borderRadius: 24,
+    backgroundColor: colors.surfaceAlt,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.surfaceAlt,
+  },
+  actionIconButton: {
+    width: 40,
+    height: 42,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  actionMenuBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 2,
+  },
+  chatActionMenu: {
+    position: 'absolute',
+    top: 58,
+    right: 8,
+    zIndex: 3,
+    width: 148,
+    paddingVertical: 5,
+    borderRadius: 12,
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    elevation: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  chatActionItem: {
+    height: 42,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    gap: 10,
+  },
+  chatActionText: {
+    color: colors.textPrimary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  dangerText: {
+    color: colors.error,
+  },
   avatarWrap: {
-    marginLeft: 2,
+    marginLeft: 0,
   },
   headerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
   },
   onlineBadge: {
     position: 'absolute',
@@ -771,18 +960,135 @@ const styles = StyleSheet.create({
   },
   userInfo: {
     flex: 1,
-    marginLeft: 10,
+    marginLeft: 8,
   },
   userName: {
     color: colors.textPrimary,
-    fontSize: 15.5,
+    fontSize: 14,
     fontWeight: '700',
+    lineHeight: 17,
   },
   onlineText: {
-    color: colors.online,
-    fontSize: 11.5,
+    color: colors.textSecondary,
+    fontSize: 10,
     fontWeight: '500',
-    marginTop: 1,
+    lineHeight: 13,
+    marginTop: 0,
+  },
+
+  /* REPORT */
+  reportModalBackdrop: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    backgroundColor: 'rgba(0,0,0,0.68)',
+  },
+  reportModalCard: {
+    width: '100%',
+    maxWidth: 390,
+    padding: 20,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  reportModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  reportModalTitle: {
+    color: colors.textPrimary,
+    fontSize: 20,
+    fontWeight: '700',
+  },
+  reportModalSubtitle: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    marginTop: 5,
+  },
+  reportLabel: {
+    color: colors.textPrimary,
+    fontSize: 13,
+    fontWeight: '700',
+    marginBottom: 9,
+  },
+  reportReasons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 18,
+  },
+  reportReason: {
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    borderRadius: 9,
+    backgroundColor: colors.surfaceAlt,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  reportReasonSelected: {
+    backgroundColor: colors.primary,
+    borderColor: colors.primary,
+  },
+  reportReasonText: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reportReasonTextSelected: {
+    color: '#FFFFFF',
+  },
+  reportDescription: {
+    minHeight: 90,
+    maxHeight: 140,
+    paddingHorizontal: 12,
+    paddingTop: 11,
+    paddingBottom: 11,
+    marginBottom: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surfaceAlt,
+    color: colors.textPrimary,
+    fontSize: 14,
+    textAlignVertical: 'top',
+  },
+  reportModalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 10,
+  },
+  reportCancelButton: {
+    minWidth: 82,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: colors.surfaceAlt,
+  },
+  reportCancelText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  reportSubmitButton: {
+    minWidth: 92,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: 10,
+    backgroundColor: colors.primary,
+  },
+  reportSubmitDisabled: {
+    opacity: 0.65,
+  },
+  reportSubmitText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '700',
   },
 
   /* CHAT */

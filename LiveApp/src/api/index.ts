@@ -168,6 +168,7 @@ export const userApi = {
   getSettings: () => apiClient.get('/user/settings'),
   updateSettings: (data: object) => apiClient.put('/user/settings', data),
   registerPushToken: (token: string) => apiClient.post('/user/push-token', { token }),
+  blockUser: (userId: string) => apiClient.post(`/user/block/${userId}`),
 };
 
 export const subscriptionApi = {
