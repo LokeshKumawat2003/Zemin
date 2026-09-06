@@ -4,17 +4,19 @@ import { LocalVideoTrack, Track } from 'livekit-client';
 
 export function isLiveKitConfigured(
   token?: string | null,
-  livekitEnabled?: boolean
+  livekitEnabled?: boolean,
 ): boolean {
   return Boolean(
     livekitEnabled &&
       typeof token === 'string' &&
       token.length > 0 &&
-      !token.startsWith('dev_')
+      !token.startsWith('dev_'),
   );
 }
 
-export function getLiveKitFacingMode(cameraType?: typeof CameraType.Front | typeof CameraType.Back) {
+export function getLiveKitFacingMode(
+  cameraType?: typeof CameraType.Front | typeof CameraType.Back,
+) {
   if (cameraType === CameraType.Back) {
     return 'environment' as const;
   }
@@ -23,7 +25,7 @@ export function getLiveKitFacingMode(cameraType?: typeof CameraType.Front | type
 
 export async function switchHostCamera(
   localParticipant: LocalParticipant,
-  cameraType: typeof CameraType.Front | typeof CameraType.Back
+  cameraType: typeof CameraType.Front | typeof CameraType.Back,
 ): Promise<void> {
   const facingMode = getLiveKitFacingMode(cameraType);
   const publication = localParticipant.getTrackPublication(Track.Source.Camera);
@@ -50,4 +52,3 @@ export async function switchHostCamera(
   }
   await localParticipant.setCameraEnabled(true, { facingMode });
 }
-

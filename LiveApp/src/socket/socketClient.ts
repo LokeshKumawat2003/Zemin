@@ -40,7 +40,9 @@ class SocketManager {
     return () => this.socket?.off('chat:message', handler);
   }
 
-  onChatRead(handler: (data: { conversationId: string; messageIds: string[] }) => void) {
+  onChatRead(
+    handler: (data: { conversationId: string; messageIds: string[] }) => void,
+  ) {
     this.socket?.on('chat:read', handler);
     return () => this.socket?.off('chat:read', handler);
   }
@@ -62,12 +64,16 @@ class SocketManager {
     this.socket?.emit('live:chat', { roomId, text });
   }
 
-  onLiveChatMessage(handler: (msg: { userId: string; text: string; sentAt: string }) => void) {
+  onLiveChatMessage(
+    handler: (msg: { userId: string; text: string; sentAt: string }) => void,
+  ) {
     this.socket?.on('live:chat_message', handler);
     return () => this.socket?.off('live:chat_message', handler);
   }
 
-  onLiveViewerCount(handler: (data: { roomId: string; count: number }) => void) {
+  onLiveViewerCount(
+    handler: (data: { roomId: string; count: number }) => void,
+  ) {
     this.socket?.on('live:viewer_count', handler);
     return () => this.socket?.off('live:viewer_count', handler);
   }
@@ -82,9 +88,9 @@ class SocketManager {
       giftEmoji?: string;
       coinCost: number;
       quantity?: number;
-  totalCoins: number;
+      totalCoins: number;
       sentAt: string;
-    }) => void
+    }) => void,
   ) {
     this.socket?.on('live:gift', handler);
     return () => this.socket?.off('live:gift', handler);

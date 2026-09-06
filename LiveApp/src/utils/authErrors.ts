@@ -11,13 +11,17 @@ export function getAuthErrorMessage(error: unknown, fallback: string): string {
   const details = payload?.error?.details;
 
   if (details?.length) {
-    return details.map((d) => d.message.replace(/^"(.+)" /, '$1 ')).join('\n');
+    return details.map(d => d.message.replace(/^"(.+)" /, '$1 ')).join('\n');
   }
 
   return payload?.error?.message || payload?.message || fallback;
 }
 
-export function validateSignupInput(username: string, email: string, password: string): string | null {
+export function validateSignupInput(
+  username: string,
+  email: string,
+  password: string,
+): string | null {
   if (!/^[a-zA-Z0-9]{3,20}$/.test(username)) {
     return 'Username must be 3–20 letters or numbers only';
   }
