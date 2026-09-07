@@ -950,6 +950,57 @@ class AdminService {
   }
 
   // ==== Live Management ====
+  async createFakeLiveStream({ userId, title, videoUrl, thumbnail, category, adminId }) {
+    const { User: AuthUser } = getAuthModels();
+    if (!userId || !require('mongoose').isValidObjectId(userId)) {
+      throw new AppError('VALIDATION_ERROR', 400, 'A valid host user ID is required');
+    }
+    if (!title || !String(title).trim()) {
+      throw new AppError('VALIDATION_ERROR', 400, 'A live title is required');
+    }
+    try {
+      new URL(videoUrl);
+    } catch {
+      throw new AppError('VALIDATION_ERROR', 400, 'A valid video URL is required');
+    }
+
+    const host = await AuthUser.findById(userId).select('_id username email displayName avatar isVerified');
+    if (!host) throw new AppError('NOT_FOUND', 404, 'Host user not found');
+
+    const stream = await LiveRoom.create({
+      userId,
+      title: String(title).trim(),
+      category: category || 'general',
+      thumbnail,
+      playbackType: 'video',
+      playbackUrl: videoUrl,
+      streamKey: `sk_fake_${require('crypto').randomBytes(12).toString('hex')}`,
+      status: 'live',
+      startedAt: new Date(),
+      livekitRoom: `fake_${require('crypto').randomBytes(8).toString('hex')}`,
+    });
+    await Creator.findOneAndUpdate(
+      { userId },
+      { $set: { isLive: true, currentLiveRoomId: stream._id }, $setOnInsert: { userId, verificationStatus: 'approved' } },
+      { upsert: true }
+    );
+    await AdminAction.create({ adminId, action: 'create_fake_live', targetType: 'live', targetId: stream._id, details: { videoUrl } });
+    return { ...stream.toObject(), userId: host };
+  }
+
+  async playFakeLiveStream(liveId, adminId) {
+    const stream = await LiveRoom.findOne({ _id: liveId, playbackType: 'video' });
+    if (!stream) throw new AppError('NOT_FOUND', 404, 'Fake live stream not found');
+    stream.status = 'live';
+    stream.startedAt = new Date();
+    stream.endedAt = undefined;
+    stream.stats.currentViewers = 0;
+    await stream.save();
+    await Creator.findOneAndUpdate({ userId: stream.userId }, { isLive: true, currentLiveRoomId: stream._id });
+    await AdminAction.create({ adminId, action: 'play_fake_live', targetType: 'live', targetId: liveId });
+    return stream;
+  }
+
   async getAllLiveStreams({ skip, limit, status, search }) {
     const { User: AuthUser } = getAuthModels();
     const filter = {};

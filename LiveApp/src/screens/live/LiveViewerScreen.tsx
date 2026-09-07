@@ -45,6 +45,8 @@ export const LiveViewerScreen = (props: Props) => {
     livekitUrl,
     webrtcToken,
     livekitEnabled,
+    playbackType,
+    playbackUrl,
     keyboardVisible,
     chatListRef,
     setChatText,
@@ -89,6 +91,8 @@ export const LiveViewerScreen = (props: Props) => {
           livekitUrl={livekitUrl}
           webrtcToken={webrtcToken}
           livekitEnabled={livekitEnabled}
+          playbackType={playbackType}
+          playbackUrl={playbackUrl}
           connecting={streamConnecting}
           error={streamError}
           onConnected={handleStreamConnected}

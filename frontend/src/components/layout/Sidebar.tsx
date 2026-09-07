@@ -13,6 +13,7 @@ import {
   Boxes,
   Clapperboard,
   FileText,
+  Film,
   LayoutDashboard,
   LogOut,
   MessageCircle,
@@ -38,7 +39,8 @@ export type SidebarTab =
   | "Posts"
   | "Comments"
   | "Activity Logs"
-  | "Live Streams";
+  | "Live Streams"
+  | "Fake Live Control";
 
 type SidebarProps = {
   activeTab: SidebarTab;
@@ -132,6 +134,7 @@ export const Sidebar = ({ activeTab, onNavigate, onSignOut, onClose }: SidebarPr
         <NavItem icon={MessageCircle} label="Comments" active={activeTab === "Comments"} onClick={() => navigate("Comments")} />
         <NavItem icon={ScrollText} label="Activity Logs" active={activeTab === "Activity Logs"} onClick={() => navigate("Activity Logs")} />
         <NavItem icon={Clapperboard} label="Live Streams" active={activeTab === "Live Streams"} onClick={() => navigate("Live Streams")} />
+        <NavItem icon={Film} label="Fake Live Control" active={activeTab === "Fake Live Control"} onClick={() => navigate("Fake Live Control")} />
       </VStack>
 
       <Box mt="auto">

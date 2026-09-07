@@ -70,6 +70,8 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
   const [livekitUrl, setLivekitUrl] = useState<string>();
   const [webrtcToken, setWebrtcToken] = useState<string>();
   const [livekitEnabled, setLivekitEnabled] = useState(false);
+  const [playbackType, setPlaybackType] = useState<'livekit' | 'video'>('livekit');
+  const [playbackUrl, setPlaybackUrl] = useState<string>();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   const chatListRef = useRef<any>(null);
@@ -103,12 +105,16 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
         const token = joinRes.data?.webrtcToken;
         const url = joinRes.data?.livekitUrl;
         const enabled = Boolean(joinRes.data?.livekitEnabled);
+      const nextPlaybackType = joinRes.data?.playbackType === 'video' ? 'video' : 'livekit';
+      const nextPlaybackUrl = joinRes.data?.playbackUrl;
 
         setWebrtcToken(token);
         setLivekitUrl(url);
         setLivekitEnabled(enabled);
+      setPlaybackType(nextPlaybackType);
+      setPlaybackUrl(nextPlaybackUrl);
 
-        if (!isLiveKitConfigured(token, enabled)) {
+      if (nextPlaybackType !== 'video' && !isLiveKitConfigured(token, enabled)) {
           setStreamConnecting(false);
           setStreamError(
             'Live video server is not connected yet. Host camera preview works locally; viewers need LiveKit configured.',
@@ -294,6 +300,8 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
     livekitUrl,
     webrtcToken,
     livekitEnabled,
+    playbackType,
+    playbackUrl,
     keyboardVisible,
     chatListRef,
     setChatText,

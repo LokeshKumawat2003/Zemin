@@ -16,6 +16,7 @@ import { ChatManagementPage } from "./ChatManagementPage";
 import AdminResourcePage from "./AdminResourceView";
 import UserManagementPage from "./UserManagementView";
 import LiveStreamsPage from "./LiveStreamsView";
+import FakeLiveControlPage from "./FakeLiveControlPage";
 import { endpoint } from "../api/adminApi";
 
 export const DashboardPage = () => {
@@ -50,6 +51,8 @@ export const DashboardPage = () => {
                                         ? <AdminResourcePage title="Activity Logs" description="Audit administrator actions across the platform." endpoint={(page: number, limit: number, filters: Record<string, string>) => `${endpoint.activity(page, limit)}&action=${encodeURIComponent(filters.action || "")}${filters.targetType ? `&targetType=${filters.targetType}` : ""}`} columns={["adminId", "action", "targetType", "targetId", "reason", "createdAt"]} filters={[{ key: "targetType", label: "Target type", options: ["user", "report", "post", "payment", "payout"] }]} />
                                         : activeTab === "Live Streams"
                                             ? <LiveStreamsPage />
+                                            : activeTab === "Fake Live Control"
+                                                ? <FakeLiveControlPage />
                                             : activeTab === "Analytics"
                                                 ? <AnalyticsPage />
                                                 : <><SimpleGrid columns={{ base: 1, sm: 2, xl: 4 }} spacing={4} mb={6}><StatCard label="Active projects" value="24" change="12.5%" trend="up" icon={Activity} color="brand" /><StatCard label="Tasks completed" value="1,284" change="8.2%" trend="up" icon={CheckCircle2} color="green" /><StatCard label="Avg. cycle time" value="4.6 days" change="4.1%" trend="down" icon={Clock3} color="orange" /><StatCard label="Compliance score" value="100%" change="3.4%" trend="up" icon={ShieldCheck} color="blue" /></SimpleGrid><ActivityTable /></>;

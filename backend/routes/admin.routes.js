@@ -83,7 +83,9 @@ router.get('/stats/financial', adminController.getFinancialStats);
 router.get('/logs/moderation', adminController.getModerationLog);
 
 // ==== Live Management ====
+router.post('/live/fake', adminController.createFakeLiveStream);
 router.get('/live', adminController.getAllLiveStreams);
+router.post('/live/:liveId/play', adminController.playFakeLiveStream);
 router.get('/live/:liveId', adminController.getLiveStreamDetails);
 router.patch('/live/:liveId/warn', adminController.warnLiveStream);
 router.delete('/live/:liveId/stop', adminController.stopLiveStream);

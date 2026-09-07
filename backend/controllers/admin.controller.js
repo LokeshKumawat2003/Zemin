@@ -493,6 +493,23 @@ exports.getModerationLog = async (req, res, next) => {
 };
 
 // ==== Live Management ====
+exports.createFakeLiveStream = async (req, res, next) => {
+  try {
+    const data = await adminService.createFakeLiveStream({ ...req.body, adminId: req.user._id });
+    success(res, data, 'Fake live stream started', 201);
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.playFakeLiveStream = async (req, res, next) => {
+  try {
+    success(res, await adminService.playFakeLiveStream(req.params.liveId, req.user._id), 'Fake live stream started');
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getAllLiveStreams = async (req, res, next) => {
   try {
     const { page, limit, skip } = getPagination(req.query);

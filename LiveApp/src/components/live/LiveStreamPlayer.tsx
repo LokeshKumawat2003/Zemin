@@ -1,5 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
+import Video from 'react-native-video';
 import { colors, typography, spacing } from '../../theme';
 import { LiveStreamOverlay } from './LiveStreamOverlay';
 import { LiveKitViewerVideo } from './LiveKitViewerVideo';
@@ -12,6 +13,8 @@ type Props = {
   livekitUrl?: string;
   webrtcToken?: string;
   livekitEnabled?: boolean;
+    playbackType?: 'livekit' | 'video';
+    playbackUrl?: string;
   connecting?: boolean;
   error?: string | null;
   onConnected?: () => void;
@@ -25,6 +28,8 @@ export const LiveStreamPlayer = ({
   livekitUrl,
   webrtcToken,
   livekitEnabled,
+    playbackType = 'livekit',
+    playbackUrl,
   connecting = true,
   error = null,
   onConnected,
@@ -34,11 +39,22 @@ export const LiveStreamPlayer = ({
     () => isLiveKitConfigured(webrtcToken, livekitEnabled),
     [webrtcToken, livekitEnabled]
   );
+  const canUseFakeVideo = playbackType === 'video' && Boolean(playbackUrl);
 
   return (
     <View style={styles.container}>
       <View style={styles.videoArea}>
-        {canUseLiveKit ? (
+        {canUseFakeVideo ? (
+          <Video
+            source={{ uri: playbackUrl }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+            repeat
+            paused={false}
+            onLoad={onConnected}
+            onError={() => onStreamError?.('The scheduled video could not be loaded.')}
+          />
+        ) : canUseLiveKit ? (
           <LiveKitViewerVideo
             livekitUrl={livekitUrl}
             webrtcToken={webrtcToken}
@@ -52,7 +68,7 @@ export const LiveStreamPlayer = ({
           <View style={styles.centered} pointerEvents="none">
             <ActivityIndicator color={colors.primary} size="large" />
             <Text style={styles.status}>
-              {canUseLiveKit ? 'Connecting to live video…' : 'Waiting for host camera…'}
+              {canUseFakeVideo ? 'Loading live video…' : canUseLiveKit ? 'Connecting to live video…' : 'Waiting for host camera…'}
             </Text>
           </View>
         ) : null}
