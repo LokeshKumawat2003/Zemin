@@ -1001,6 +1001,36 @@ class AdminService {
     return stream;
   }
 
+  async updateFakeLiveStream(liveId, data, adminId) {
+    const stream = await LiveRoom.findOne({ _id: liveId, playbackType: 'video' });
+    if (!stream) throw new AppError('NOT_FOUND', 404, 'Fake live stream not found');
+    if (!data.title || !String(data.title).trim()) {
+      throw new AppError('VALIDATION_ERROR', 400, 'A live title is required');
+    }
+    try {
+      new URL(data.videoUrl);
+    } catch {
+      throw new AppError('VALIDATION_ERROR', 400, 'A valid video URL is required');
+    }
+
+    stream.title = String(data.title).trim();
+    stream.playbackUrl = data.videoUrl;
+    stream.thumbnail = data.thumbnail || undefined;
+    stream.category = data.category || 'general';
+    await stream.save();
+    await AdminAction.create({ adminId, action: 'update_fake_live', targetType: 'live', targetId: liveId });
+    return stream;
+  }
+
+  async deleteFakeLiveStream(liveId, adminId) {
+    const stream = await LiveRoom.findOne({ _id: liveId, playbackType: 'video' });
+    if (!stream) throw new AppError('NOT_FOUND', 404, 'Fake live stream not found');
+    await LiveRoom.deleteOne({ _id: liveId });
+    await Creator.findOneAndUpdate({ userId: stream.userId }, { isLive: false, $unset: { currentLiveRoomId: 1 } });
+    await AdminAction.create({ adminId, action: 'delete_fake_live', targetType: 'live', targetId: liveId });
+    return { deleted: true, liveId };
+  }
+
   async getAllLiveStreams({ skip, limit, status, search }) {
     const { User: AuthUser } = getAuthModels();
     const filter = {};

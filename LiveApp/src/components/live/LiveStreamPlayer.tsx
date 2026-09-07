@@ -68,7 +68,7 @@ export const LiveStreamPlayer = ({
           <View style={styles.centered} pointerEvents="none">
             <ActivityIndicator color={colors.primary} size="large" />
             <Text style={styles.status}>
-              {canUseFakeVideo ? 'Loading live video…' : canUseLiveKit ? 'Connecting to live video…' : 'Waiting for host camera…'}
+              {canUseFakeVideo ? 'Loading live...' : canUseLiveKit ? 'Connecting to live...' : 'Waiting for host camera…'}
             </Text>
           </View>
         ) : null}

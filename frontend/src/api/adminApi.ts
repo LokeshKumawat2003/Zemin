@@ -111,6 +111,8 @@ export const endpoint = {
   liveStreams: "/admin/live",
   fakeLive: "/admin/live/fake",
   playFakeLive: (id: string) => `/admin/live/${id}/play`,
+  updateFakeLive: (id: string) => `/admin/live/${id}/fake`,
+  deleteFakeLive: (id: string) => `/admin/live/${id}/fake`,
   stopLive: (id: string) => `/admin/live/${id}/stop`,
   reports: (page = 1, limit = 10) => `/admin/reports?page=${page}&limit=${limit}`,
   report: (id: string) => `/admin/reports/${id}`,

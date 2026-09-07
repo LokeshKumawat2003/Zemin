@@ -510,6 +510,22 @@ exports.playFakeLiveStream = async (req, res, next) => {
   }
 };
 
+exports.updateFakeLiveStream = async (req, res, next) => {
+  try {
+    success(res, await adminService.updateFakeLiveStream(req.params.liveId, req.body, req.user._id), 'Fake live stream updated');
+  } catch (err) {
+    next(err);
+  }
+};
+
+exports.deleteFakeLiveStream = async (req, res, next) => {
+  try {
+    success(res, await adminService.deleteFakeLiveStream(req.params.liveId, req.user._id), 'Fake live stream deleted');
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.getAllLiveStreams = async (req, res, next) => {
   try {
     const { page, limit, skip } = getPagination(req.query);
