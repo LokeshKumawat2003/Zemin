@@ -27,6 +27,7 @@ const liveRoomSchema = new mongoose.Schema(
     enableRecording: { type: Boolean, default: false },
     enableGuest: { type: Boolean, default: true },
     maxGuests: { type: Number, default: 1000000, min: 0, max: 1000000 },
+    removedUserIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
     guests: [
       {
         userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

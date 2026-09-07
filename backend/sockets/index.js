@@ -3,6 +3,8 @@ const { verifyAccessToken } = require('../utils/jwt.util');
 const { allowedOrigins } = require('../config/env');
 const Conversation = require('../models/Conversation.model');
 const Message = require('../models/Message.model');
+const LiveRoom = require('../models/LiveRoom.model');
+const User = require('../models/User.model');
 const presenceService = require('../services/presence.service');
 
 let io;
@@ -40,8 +42,24 @@ const initSocket = (server) => {
     presenceService.markOnline(socket.userId);
     io.emit('presence:update', { userId: socket.userId, online: true });
 
-    socket.on('live:join', ({ roomId }) => {
+    socket.on('live:join', async ({ roomId }) => {
       if (!roomId) return;
+
+      const liveRoom = await LiveRoom.findOne({
+        _id: roomId,
+        status: { $in: ['waiting', 'live'] },
+      }).select('userId removedUserIds');
+      if (!liveRoom) return;
+
+      const isHost = liveRoom.userId.toString() === socket.userId;
+      const wasRemoved = liveRoom.removedUserIds.some((userId) => userId.toString() === socket.userId);
+      const host = await User.findById(liveRoom.userId).select('blockedUsers');
+      const isBlocked = host?.blockedUsers?.some((userId) => userId.toString() === socket.userId);
+      if (!isHost && (wasRemoved || isBlocked)) {
+        socket.emit('live:moderated', { roomId, action: isBlocked ? 'block' : 'remove' });
+        return;
+      }
+
       socket.join(`live:${roomId}`);
       socket.data.liveRooms = socket.data.liveRooms || new Set();
       socket.data.liveRooms.add(roomId);
@@ -63,6 +81,42 @@ const initSocket = (server) => {
         text: text.trim().slice(0, 200),
         sentAt: new Date().toISOString(),
       });
+    });
+
+    socket.on('live:moderate', async ({ roomId, targetUserId, action }) => {
+      if (!roomId || !targetUserId || !['remove', 'block'].includes(action)) return;
+
+      const liveRoom = await LiveRoom.findOne({
+        _id: roomId,
+        userId: socket.userId,
+        status: { $in: ['waiting', 'live'] },
+      }).select('_id');
+      if (!liveRoom || targetUserId === socket.userId) return;
+
+      if (action === 'block') {
+        await User.findByIdAndUpdate(socket.userId, {
+          $addToSet: { blockedUsers: targetUserId },
+        });
+      }
+      await LiveRoom.findByIdAndUpdate(roomId, {
+        $addToSet: { removedUserIds: targetUserId },
+      });
+
+      const targetSockets = [...io.sockets.sockets.values()].filter(
+        (targetSocket) => targetSocket.userId === targetUserId && targetSocket.data.liveRooms?.has(roomId),
+      );
+      targetSockets.forEach((targetSocket) => {
+        targetSocket.leave(`live:${roomId}`);
+        targetSocket.emit('live:moderated', { roomId, action });
+        targetSocket.data.liveRooms.delete(roomId);
+      });
+
+      io.to(`live:${roomId}`).emit('live:user_removed', {
+        roomId,
+        userId: targetUserId,
+        action,
+      });
+      emitLiveViewerCount(roomId);
     });
 
     socket.on('chat:join', async ({ conversationId }) => {

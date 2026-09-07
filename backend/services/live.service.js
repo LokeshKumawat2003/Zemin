@@ -321,11 +321,16 @@ class LiveService {
   }
 
   async joinRoom(userId, roomId) {
-    const room = await LiveRoom.findById(roomId).populate('userId', 'username displayName avatar isVerified');
+    const room = await LiveRoom.findById(roomId).populate('userId', 'username displayName avatar isVerified blockedUsers');
     if (!room) throw new AppError('NOT_FOUND', 404, 'Live room not found');
     if (room.status !== 'live') throw new AppError('LIVE_ROOM_ENDED', 400, 'Stream is not live');
 
     const isHost = String(room.userId?._id || room.userId) === String(userId);
+    const isRemoved = room.removedUserIds?.some((removedUserId) => String(removedUserId) === String(userId));
+    const isBlocked = room.userId?.blockedUsers?.some((blockedUserId) => String(blockedUserId) === String(userId));
+    if (!isHost && (isRemoved || isBlocked)) {
+      throw new AppError('LIVE_ACCESS_REVOKED', 403, 'You can no longer join this live room');
+    }
     const isVip = room.roomType === 'vip';
     const alreadyPaid = this.hasPaidEntry(room, userId);
     const subscription = !isHost

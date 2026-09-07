@@ -60,6 +60,9 @@ export const LiveHostScreen = (props: Props) => {
     formatCount,
     toggleMute,
     toggleCamera,
+    openCommentMenuId,
+    setOpenCommentMenuId,
+    moderateUser,
   } = useLiveHostScreen(props);
 
   const setControlsVisible = (visible: boolean) => {
@@ -191,9 +194,41 @@ export const LiveHostScreen = (props: Props) => {
                 ) : (
                   <View style={[styles.chatAvatar, styles.chatAvatarFallback]} />
                 )}
-                <View style={styles.chatBubble}>
-                  <Text style={styles.chatUser}>{item.user}</Text>
-                  <Text style={styles.chatText}>{item.text}</Text>
+                <View style={styles.commentActions}>
+                  <View style={styles.chatBubble}>
+                    <Text style={styles.chatUser}>{item.user}</Text>
+                    <Text style={styles.chatText}>{item.text}</Text>
+                  </View>
+                  {item.userId && item.user !== 'You' && (
+                    <>
+                      <Pressable
+                        style={styles.commentMenuButton}
+                        onPress={() => setOpenCommentMenuId(openCommentMenuId === item.id ? null : item.id)}
+                        hitSlop={6}
+                        accessibilityLabel="Comment options"
+                      >
+                        <Icon name="more-vert" size={18} color="rgba(255,255,255,0.78)" />
+                      </Pressable>
+                      {openCommentMenuId === item.id && (
+                        <View style={styles.commentMenu}>
+                          <Pressable
+                            style={styles.commentMenuItem}
+                            onPress={() => moderateUser(item.userId!, 'remove')}
+                          >
+                            <Icon name="person-remove" size={17} color="#fff" />
+                            <Text style={styles.commentMenuText}>Remove user</Text>
+                          </Pressable>
+                          <Pressable
+                            style={styles.commentMenuItem}
+                            onPress={() => moderateUser(item.userId!, 'block')}
+                          >
+                            <Icon name="block" size={17} color="#ff6b81" />
+                            <Text style={[styles.commentMenuText, styles.blockMenuText]}>Block user</Text>
+                          </Pressable>
+                        </View>
+                      )}
+                    </>
+                  )}
                 </View>
               </View>
             )

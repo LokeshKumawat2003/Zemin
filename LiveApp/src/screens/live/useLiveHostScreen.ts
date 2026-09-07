@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { liveApi } from '../../api';
+import { liveApi, userApi } from '../../api';
 import { getGiftEmoji } from '../../components/live/LiveGiftEffects';
 import { useAppSelector } from '../../redux/hooks';
 import { LiveStackParamList } from '../../navigation/types';
@@ -20,6 +20,7 @@ type Props = NativeStackScreenProps<LiveStackParamList, 'LiveHost'>;
 export interface ChatMessage {
   id: string;
   type: 'message' | 'join' | 'gift';
+  userId?: string;
   user?: string;
   avatar?: string;
   text?: string;
@@ -74,6 +75,7 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
   const [giftCoinsEarned, setGiftCoinsEarned] = useState(0);
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraFront, setIsCameraFront] = useState(true);
+  const [openCommentMenuId, setOpenCommentMenuId] = useState<string | null>(null);
 
   const listRef = useRef<any>(null);
   const autoEndTriggeredRef = useRef(false);
@@ -158,6 +160,7 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
       {
         id: `${payload.sentAt}-${payload.userId}`,
         type: 'message',
+        userId: payload.userId,
         user: payload.userId === currentUser?.id ? 'You' : 'Viewer',
         text: payload.text,
       },
@@ -192,6 +195,17 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
   useLiveSocket(roomId, onSocketEvent, handleViewerCount, onLiveGift);
 
   useEffect(() => {
+    const cleanup = socketManager.onLiveUserRemoved((payload) => {
+      if (payload.roomId !== roomId) return;
+      setMessages((prev) => prev.filter((message) => message.userId !== payload.userId));
+      setOpenCommentMenuId(null);
+    });
+    return () => {
+      cleanup?.();
+    };
+  }, [roomId]);
+
+  useEffect(() => {
     listRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
 
@@ -221,6 +235,20 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
     const color = HEART_COLORS[Math.floor(Math.random() * HEART_COLORS.length)];
     setHearts((prev) => [...prev, { id, color }]);
   }, []);
+
+  const moderateUser = useCallback(async (targetUserId: string, action: 'remove' | 'block') => {
+    setOpenCommentMenuId(null);
+    setMessages((prev) => prev.filter((message) => message.userId !== targetUserId));
+
+    try {
+      if (action === 'block') {
+        await userApi.blockUser(targetUserId);
+      }
+      socketManager.moderateLiveUser(roomId, targetUserId, action);
+    } catch (error: any) {
+      Alert.alert('Moderation failed', error?.error?.message || 'Could not update this viewer.');
+    }
+  }, [roomId]);
 
   const removeHeart = useCallback((id: string) => {
     setHearts((prev) => prev.filter((h) => h.id !== id));
@@ -265,5 +293,8 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
     formatCount,
     toggleMute,
     toggleCamera,
+    openCommentMenuId,
+    setOpenCommentMenuId,
+    moderateUser,
   };
 };

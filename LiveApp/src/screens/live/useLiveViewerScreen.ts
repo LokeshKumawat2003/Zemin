@@ -209,6 +209,20 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
   useLiveSocket(roomId, onChatMessage, setViewerCount, onLiveGift);
 
   useEffect(() => {
+    const cleanup = socketManager.onLiveModerated((data) => {
+      if (data.roomId !== roomId) return;
+      Alert.alert(
+        data.action === 'block' ? 'Blocked from live' : 'Removed from live',
+        'You can no longer join this live room.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }],
+      );
+    });
+    return () => {
+      cleanup?.();
+    };
+  }, [navigation, roomId]);
+
+  useEffect(() => {
     chatListRef.current?.scrollToEnd({ animated: true });
   }, [messages]);
 

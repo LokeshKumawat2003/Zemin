@@ -64,11 +64,29 @@ class SocketManager {
     this.socket?.emit('live:chat', { roomId, text });
   }
 
+  moderateLiveUser(roomId: string, targetUserId: string, action: 'remove' | 'block') {
+    this.socket?.emit('live:moderate', { roomId, targetUserId, action });
+  }
+
   onLiveChatMessage(
     handler: (msg: { userId: string; text: string; sentAt: string }) => void,
   ) {
     this.socket?.on('live:chat_message', handler);
     return () => this.socket?.off('live:chat_message', handler);
+  }
+
+  onLiveUserRemoved(
+    handler: (data: { roomId: string; userId: string; action: 'remove' | 'block' }) => void,
+  ) {
+    this.socket?.on('live:user_removed', handler);
+    return () => this.socket?.off('live:user_removed', handler);
+  }
+
+  onLiveModerated(
+    handler: (data: { roomId: string; action: 'remove' | 'block' }) => void,
+  ) {
+    this.socket?.on('live:moderated', handler);
+    return () => this.socket?.off('live:moderated', handler);
   }
 
   onLiveViewerCount(
