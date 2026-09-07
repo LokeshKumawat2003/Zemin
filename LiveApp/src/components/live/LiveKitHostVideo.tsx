@@ -92,7 +92,7 @@ function HostCameraTrack({
           key={`${activeCameraType}-${videoRenderKey}`}
           trackRef={localTrack}
           style={StyleSheet.absoluteFillObject}
-          mirror={activeCameraType === CameraType.Front}
+          mirror={false}
           objectFit="cover"
         />
       ) : (

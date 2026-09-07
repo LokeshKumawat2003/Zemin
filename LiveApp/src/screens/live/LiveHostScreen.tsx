@@ -1,16 +1,18 @@
-import React from 'react';
+import React, { useRef, useState } from 'react';
 import {
+  Animated,
   View,
   Text,
   Image,
   TextInput,
-  TouchableOpacity,
+  Pressable,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
+  PanResponder,
   StatusBar,
   StyleSheet,
 } from 'react-native';
+import Icon from '@react-native-vector-icons/material-icons';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { CameraType } from 'react-native-camera-kit';
 import { LiveCameraPreview } from '../../components/live/LiveCameraPreview';
@@ -24,6 +26,9 @@ import { useLiveHostScreen } from './useLiveHostScreen';
 type Props = NativeStackScreenProps<LiveStackParamList, 'LiveHost'>;
 
 export const LiveHostScreen = (props: Props) => {
+  const [showControls, setShowControls] = useState(true);
+  const [showQuickActions, setShowQuickActions] = useState(false);
+  const controlsOpacity = useRef(new Animated.Value(1)).current;
   const {
     title,
     webrtcToken,
@@ -49,7 +54,6 @@ export const LiveHostScreen = (props: Props) => {
     setCommentText,
     setIsCameraFront,
     sendComment,
-    sendHeart,
     removeHeart,
     removeGiftAnimation,
     formatDuration,
@@ -58,11 +62,30 @@ export const LiveHostScreen = (props: Props) => {
     toggleCamera,
   } = useLiveHostScreen(props);
 
+  const setControlsVisible = (visible: boolean) => {
+    setShowControls(visible);
+    Animated.timing(controlsOpacity, {
+      toValue: visible ? 1 : 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const swipeResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) => Math.abs(gesture.dx) > 18 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dx > 60) setControlsVisible(false);
+        if (gesture.dx < -60) setControlsVisible(true);
+      },
+    }),
+  ).current;
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      <View style={StyleSheet.absoluteFill}>
+      <View style={StyleSheet.absoluteFill} {...swipeResponder.panHandlers}>
         <LiveKitHostVideo
           livekitUrl={livekitUrl}
           webrtcToken={webrtcToken}
@@ -82,12 +105,7 @@ export const LiveHostScreen = (props: Props) => {
         <View style={styles.backdrop} />
       </View>
 
-      <KeyboardAvoidingView
-        style={StyleSheet.absoluteFill}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-      >
-        <View style={styles.topBar}>
+      <Animated.View style={[styles.topBar, { opacity: controlsOpacity }]} pointerEvents={showControls ? 'auto' : 'none'}>
           <View style={styles.hostChip}>
             {hostAvatarUri ? (
               <Image source={{ uri: hostAvatarUri }} style={styles.hostAvatar} />
@@ -114,11 +132,11 @@ export const LiveHostScreen = (props: Props) => {
               <Text style={styles.viewerIcon}>👁</Text>
               <Text style={styles.viewerText}>{formatCount(viewers)}</Text>
             </View>
-            <TouchableOpacity onPress={confirmEndStream} style={styles.closeBtn} disabled={ending}>
-              <Text style={styles.closeBtnText}>✕</Text>
-            </TouchableOpacity>
+            <Pressable onPress={confirmEndStream} style={styles.closeBtn} disabled={ending} hitSlop={8}>
+              <Icon name="close" size={20} color="#fff" />
+            </Pressable>
           </View>
-        </View>
+      </Animated.View>
 
         <View pointerEvents="none" style={styles.heartsColumn}>
           {hearts.map((h) => (
@@ -135,18 +153,23 @@ export const LiveHostScreen = (props: Props) => {
           />
         ))}
 
-        <FlatList
-          ref={listRef}
-          data={messages}
-          keyExtractor={(m) => m.id}
-          style={[
-            styles.chatList,
-            isCompact ? styles.chatListCompact : styles.chatListWide,
-            { maxHeight: chatMaxHeight },
-          ]}
-          contentContainerStyle={styles.chatListContent}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) =>
+      <Animated.View
+        style={[styles.overlayLayer, { opacity: controlsOpacity }]}
+        pointerEvents={showControls ? 'box-none' : 'none'}
+      >
+        <KeyboardStickyView offset={{ opened: 0, closed: 0 }} style={[
+          styles.chatSticky,
+          isCompact ? styles.chatListCompact : styles.chatListWide,
+          { maxHeight: keyboardVisible ? Math.min(chatMaxHeight, 150) : chatMaxHeight },
+        ]}>
+          <FlatList
+            ref={listRef}
+            data={messages}
+            keyExtractor={(m) => m.id}
+            style={styles.chatList}
+            contentContainerStyle={styles.chatListContent}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) =>
             item.type === 'join' ? (
               <View style={styles.joinToast}>
                 <Text style={styles.joinToastText}>👋 {item.user} joined</Text>
@@ -174,48 +197,72 @@ export const LiveHostScreen = (props: Props) => {
                 </View>
               </View>
             )
-          }
-        />
+            }
+          />
+        </KeyboardStickyView>
 
-        <View style={styles.bottomBar}>
-          <View style={styles.inputWrap}>
-            <TextInput
-              style={styles.input}
-              placeholder="Say something..."
-              placeholderTextColor="rgba(255,255,255,0.62)"
-              value={commentText}
-              onChangeText={setCommentText}
-              onSubmitEditing={sendComment}
-              returnKeyType="send"
-              blurOnSubmit={false}
+        {showQuickActions && (
+          <>
+            <Pressable
+              style={styles.drawerBackdrop}
+              onPress={() => setShowQuickActions(false)}
+              accessibilityLabel="Close host controls"
             />
-            <TouchableOpacity onPress={sendComment} style={styles.sendBtn}>
-              <Text style={styles.sendBtnText}>➤</Text>
-            </TouchableOpacity>
+            <KeyboardStickyView offset={{ opened: 0, closed: 0 }} style={styles.actionDrawer}>
+              <View style={styles.drawerHandle} />
+              <View style={styles.drawerOptions}>
+                <Pressable style={styles.drawerOption} onPress={toggleMute}>
+                  <View style={styles.drawerIcon}>
+                    <Icon name={isMuted ? 'mic-off' : 'mic'} size={23} color="#fff" />
+                  </View>
+                  <Text style={styles.drawerLabel}>{isMuted ? 'Unmute' : 'Mute'}</Text>
+                </Pressable>
+                <Pressable style={styles.drawerOption} onPress={toggleCamera}>
+                  <View style={styles.drawerIcon}>
+                    <Icon name="flip-camera-android" size={23} color="#fff" />
+                  </View>
+                  <Text style={styles.drawerLabel}>{isCameraFront ? 'Back camera' : 'Front camera'}</Text>
+                </Pressable>
+              </View>
+            </KeyboardStickyView>
+          </>
+        )}
+
+        <KeyboardStickyView offset={{ opened: 0, closed: 0 }} style={styles.bottomBar}>
+          <View style={styles.composerRow}>
+            <View style={styles.inputWrap}>
+              <Icon name="chat-bubble-outline" size={20} color="rgba(255,255,255,0.7)" />
+              <TextInput
+                style={styles.input}
+                placeholder="Say something..."
+                placeholderTextColor="rgba(255,255,255,0.62)"
+                value={commentText}
+                onChangeText={setCommentText}
+                onSubmitEditing={sendComment}
+                returnKeyType="send"
+                blurOnSubmit={false}
+              />
+              <Pressable onPress={sendComment} style={styles.sendBtn} hitSlop={6}>
+                <Icon name="send" size={18} color="#fff" />
+              </Pressable>
+            </View>
+            <Pressable
+              style={styles.moreButton}
+              onPress={() => setShowQuickActions((visible) => !visible)}
+              accessibilityLabel={showQuickActions ? 'Hide host controls' : 'Show host controls'}
+            >
+              <Icon name="more-vert" size={23} color="#fff" />
+            </Pressable>
           </View>
 
-          {!keyboardVisible && (
-            <View style={styles.quickActions}>
-              <TouchableOpacity style={styles.quickAction} onPress={toggleMute}>
-                <Text style={styles.quickActionIcon}>{isMuted ? '🔇' : '🎙️'}</Text>
-                <Text style={styles.quickActionLabel}>{isMuted ? 'Muted' : 'Mic'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickAction} onPress={toggleCamera}>
-                <Text style={styles.quickActionIcon}>📷</Text>
-                <Text style={styles.quickActionLabel}>{isCameraFront ? 'Front' : 'Back'}</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickAction} onPress={sendHeart}>
-                <Text style={styles.quickActionIcon}>🌹</Text>
-                <Text style={styles.quickActionLabel}>Rose</Text>
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.quickAction}>
-                <Text style={styles.quickActionIcon}>🎁</Text>
-                <Text style={styles.quickActionLabel}>Gift</Text>
-              </TouchableOpacity>
-            </View>
-          )}
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardStickyView>
+      </Animated.View>
+
+      {!showControls && (
+        <Pressable style={styles.revealButton} onPress={() => setControlsVisible(true)}>
+          <Icon name="chevron-left" size={24} color="#fff" />
+        </Pressable>
+      )}
     </View>
   );
 };
