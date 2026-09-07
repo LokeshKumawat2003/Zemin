@@ -13,6 +13,7 @@ const BankPaymentMethod = require('../models/BankPaymentMethod.model');
 const UpiPaymentMethod = require('../models/UpiPaymentMethod.model');
 const AppError = require('../utils/AppError');
 const { getAuthModels } = require('../config/database');
+const fakeLiveService = require('./fakeLive.service');
 
 const getAnalyticsRange = ({ from, to } = {}) => {
   const end = to ? new Date(to) : new Date();
@@ -950,7 +951,7 @@ class AdminService {
   }
 
   // ==== Live Management ====
-  async createFakeLiveStream({ userId, title, videoUrl, thumbnail, category, adminId }) {
+  async createFakeLiveStream({ userId, title, videoUrl, thumbnail, category, videoDurationSeconds, fakeComments, fakeGifts, adminId }) {
     const { User: AuthUser } = getAuthModels();
     if (!userId || !require('mongoose').isValidObjectId(userId)) {
       throw new AppError('VALIDATION_ERROR', 400, 'A valid host user ID is required');
@@ -974,6 +975,9 @@ class AdminService {
       thumbnail,
       playbackType: 'video',
       playbackUrl: videoUrl,
+      videoDurationSeconds: Number(videoDurationSeconds) > 0 ? Number(videoDurationSeconds) : undefined,
+      fakeComments: fakeLiveService.normalizeComments(fakeComments),
+      fakeGifts: fakeLiveService.normalizeGifts(fakeGifts),
       streamKey: `sk_fake_${require('crypto').randomBytes(12).toString('hex')}`,
       status: 'live',
       startedAt: new Date(),
@@ -985,6 +989,7 @@ class AdminService {
       { upsert: true }
     );
     await AdminAction.create({ adminId, action: 'create_fake_live', targetType: 'live', targetId: stream._id, details: { videoUrl } });
+    fakeLiveService.start(stream);
     return { ...stream.toObject(), userId: host };
   }
 
@@ -995,7 +1000,9 @@ class AdminService {
     stream.startedAt = new Date();
     stream.endedAt = undefined;
     stream.stats.currentViewers = 0;
+    await fakeLiveService.resetFakeViewers(liveId);
     await stream.save();
+    fakeLiveService.start(stream);
     await Creator.findOneAndUpdate({ userId: stream.userId }, { isLive: true, currentLiveRoomId: stream._id });
     await AdminAction.create({ adminId, action: 'play_fake_live', targetType: 'live', targetId: liveId });
     return stream;
@@ -1015,9 +1022,14 @@ class AdminService {
 
     stream.title = String(data.title).trim();
     stream.playbackUrl = data.videoUrl;
+    stream.videoDurationSeconds = Number(data.videoDurationSeconds) > 0 ? Number(data.videoDurationSeconds) : undefined;
     stream.thumbnail = data.thumbnail || undefined;
     stream.category = data.category || 'general';
+    stream.fakeComments = fakeLiveService.normalizeComments(data.fakeComments);
+    stream.fakeGifts = fakeLiveService.normalizeGifts(data.fakeGifts);
+    stream.fakeViewerIds = [];
     await stream.save();
+    fakeLiveService.restart(stream);
     await AdminAction.create({ adminId, action: 'update_fake_live', targetType: 'live', targetId: liveId });
     return stream;
   }
@@ -1026,6 +1038,7 @@ class AdminService {
     const stream = await LiveRoom.findOne({ _id: liveId, playbackType: 'video' });
     if (!stream) throw new AppError('NOT_FOUND', 404, 'Fake live stream not found');
     await LiveRoom.deleteOne({ _id: liveId });
+    fakeLiveService.stop(liveId);
     await Creator.findOneAndUpdate({ userId: stream.userId }, { isLive: false, $unset: { currentLiveRoomId: 1 } });
     await AdminAction.create({ adminId, action: 'delete_fake_live', targetType: 'live', targetId: liveId });
     return { deleted: true, liveId };
@@ -1097,6 +1110,7 @@ class AdminService {
     stream.endedAt = new Date();
     stream.stats.currentViewers = 0;
     await stream.save();
+    if (stream.playbackType === 'video') fakeLiveService.stop(liveId);
     await Creator.findOneAndUpdate({ userId: stream.userId }, { isLive: false, $unset: { currentLiveRoomId: 1 } });
     await AdminAction.create({ adminId, action: 'stop_live', targetType: 'live', targetId: liveId, reason });
     return { stopped: true, live: stream };

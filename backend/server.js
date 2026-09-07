@@ -4,11 +4,13 @@ const { connectDB, connectAuthDB } = require('./config/database');
 const { port } = require('./config/env');
 const { initSocket } = require('./sockets');
 const livekitService = require('./services/livekit.service');
+const fakeLiveService = require('./services/fakeLive.service');
 
 const start = async () => {
   // Connect to both databases
   await connectDB();
   await connectAuthDB();
+  await fakeLiveService.startActiveRooms();
 
   if (livekitService.isConfigured()) {
     const livekitStatus = await livekitService.initialize();

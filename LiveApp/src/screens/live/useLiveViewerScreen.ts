@@ -197,7 +197,7 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
   );
 
   const onChatMessage = useCallback(
-    (msg: { userId: string; text: string; sentAt: string }) => {
+    (msg: { userId: string; userName?: string; text: string; sentAt: string; isFake?: boolean }) => {
       setMessages(prev => [
         ...prev,
         {
@@ -205,7 +205,7 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
           type: 'text',
           text: msg.text,
           isMine: msg.userId === userId,
-          userName: msg.userId === userId ? 'You' : msg.userId.slice(-6),
+          userName: msg.userId === userId ? 'You' : msg.userName || msg.userId.slice(-6),
         },
       ]);
     },

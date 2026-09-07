@@ -9,12 +9,14 @@ const presenceService = require('../services/presence.service');
 
 let io;
 
-const emitLiveViewerCount = (roomId) => {
+const emitLiveViewerCount = async (roomId) => {
   if (!roomId) return;
   const count = io.sockets.adapter.rooms.get(`live:${roomId}`)?.size || 0;
+  const liveRoom = await LiveRoom.findById(roomId).select('fakeViewerIds').lean();
+  const fakeCount = liveRoom?.fakeViewerIds?.length || 0;
   io.to(`live:${roomId}`).emit('live:viewer_count', {
     roomId,
-    count,
+    count: count + fakeCount,
   });
 };
 

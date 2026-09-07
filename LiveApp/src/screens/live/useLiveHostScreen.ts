@@ -174,7 +174,7 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
       ...prev,
       { id: animId, emoji, label: `${gift.senderName} sent ${gift.giftName}` },
     ]);
-    setGiftCoinsEarned((prev) => prev + gift.totalCoins);
+    if (!gift.isFake) setGiftCoinsEarned((prev) => prev + gift.totalCoins);
     setMessages((prev) => [
       ...prev,
       {

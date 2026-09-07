@@ -109,6 +109,7 @@ export const endpoint = {
   commentDelete: (id: string) => `/admin/content/comments/${id}`,
   activity: (page = 1, limit = 20) => `/admin/activity?page=${page}&limit=${limit}`,
   liveStreams: "/admin/live",
+  giftCatalog: "/gift/catalog",
   fakeLive: "/admin/live/fake",
   playFakeLive: (id: string) => `/admin/live/${id}/play`,
   updateFakeLive: (id: string) => `/admin/live/${id}/fake`,

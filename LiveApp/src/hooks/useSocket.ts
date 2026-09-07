@@ -22,11 +22,12 @@ export type LiveGiftPayload = {
   quantity?: number;
   totalCoins: number;
   sentAt: string;
+  isFake?: boolean;
 };
 
 export const useLiveSocket = (
   roomId: string,
-  onChatMessage: (msg: { userId: string; text: string; sentAt: string }) => void,
+  onChatMessage: (msg: { userId: string; userName?: string; text: string; sentAt: string; isFake?: boolean }) => void,
   onViewerCount?: (count: number) => void,
   onGift?: (gift: LiveGiftPayload) => void
 ) => {

@@ -10,6 +10,8 @@ import {
   Heading,
   IconButton,
   Input,
+  Select,
+  Textarea,
   SimpleGrid,
   Spinner,
   Table,
@@ -33,12 +35,17 @@ type FakeRoom = ApiRecord & {
   status?: string;
   playbackType?: string;
   playbackUrl?: string;
+  videoDurationSeconds?: number;
   thumbnail?: string;
   category?: string;
+  fakeComments?: unknown[];
+  fakeGifts?: unknown[];
   stats?: ApiRecord;
   createdAt?: string;
   userId?: ApiRecord | string;
 };
+
+type GiftOption = { giftId: string; name: string; emoji?: string; coinCost?: number };
 
 const getRooms = (value: unknown): FakeRoom[] => {
   if (Array.isArray(value)) return value as FakeRoom[];
@@ -78,6 +85,30 @@ const compactUrl = (value?: string) => {
   return `${value.slice(0, 16)}...${value.slice(-14)}`;
 };
 
+const commentPresets = {
+  welcome: [
+    { name: "Maya", text: "Amazing live!", delaySeconds: 20 },
+    { name: "Arjun", text: "Hello everyone", delaySeconds: 35 },
+    { name: "Nina", text: "The video quality is great", delaySeconds: 50 },
+  ],
+  hype: [
+    { name: "Leo", text: "This is so good!", delaySeconds: 15 },
+    { name: "Sara", text: "Keep going", delaySeconds: 30 },
+    { name: "Omar", text: "Who else is watching?", delaySeconds: 45 },
+  ],
+};
+
+const giftPresets = {
+  light: [
+    { name: "Leo", giftId: "gift_rose", quantity: 1, delaySeconds: 40 },
+    { name: "Maya", giftId: "gift_heart", quantity: 1, delaySeconds: 75 },
+  ],
+  celebration: [
+    { name: "Nina", giftId: "gift_party", quantity: 1, delaySeconds: 30 },
+    { name: "Arjun", giftId: "gift_fire", quantity: 2, delaySeconds: 60 },
+  ],
+};
+
 export const FakeLiveControlPage = () => {
   const [rooms, setRooms] = useState<FakeRoom[]>([]);
   const [loading, setLoading] = useState(true);
@@ -92,7 +123,15 @@ export const FakeLiveControlPage = () => {
     videoUrl: "",
     thumbnail: "",
     category: "general",
+    fakeComments: "[]",
+    fakeGifts: "[]",
   });
+  const [commentPreset, setCommentPreset] = useState("");
+  const [giftPreset, setGiftPreset] = useState("");
+  const [giftCatalog, setGiftCatalog] = useState<GiftOption[]>([]);
+  const [selectedGiftId, setSelectedGiftId] = useState("");
+  const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const [durationStatus, setDurationStatus] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -118,6 +157,65 @@ export const FakeLiveControlPage = () => {
     void load();
   }, [load]);
 
+  useEffect(() => {
+    adminRequestWithMeta<unknown>(endpoint.giftCatalog)
+      .then((response) => {
+        const value = response.data as ApiRecord;
+        const gifts = Array.isArray(value) ? value : Array.isArray(value?.gifts) ? value.gifts : [];
+        setGiftCatalog(gifts as GiftOption[]);
+      })
+      .catch(() => setGiftCatalog([]));
+  }, []);
+
+  useEffect(() => {
+    setVideoDuration(null);
+    if (!form.videoUrl) {
+      setDurationStatus("");
+      return;
+    }
+    setDurationStatus("Reading video length...");
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      const seconds = Number.isFinite(video.duration) ? Math.round(video.duration) : null;
+      setVideoDuration(seconds);
+      setDurationStatus(seconds ? `${Math.floor(seconds / 60)}m ${seconds % 60}s detected` : "Duration unavailable");
+    };
+    video.onerror = () => setDurationStatus("Could not read duration from this URL");
+    video.src = form.videoUrl;
+    return () => {
+      video.onloadedmetadata = null;
+      video.onerror = null;
+      video.src = "";
+    };
+  }, [form.videoUrl]);
+
+  const chooseCommentPreset = (value: string) => {
+    setCommentPreset(value);
+    setForm((current) => ({
+      ...current,
+      fakeComments: value ? JSON.stringify(commentPresets[value as keyof typeof commentPresets], null, 2) : "[]",
+    }));
+  };
+
+  const chooseGiftPreset = (value: string) => {
+    setGiftPreset(value);
+    setForm((current) => ({
+      ...current,
+      fakeGifts: value ? JSON.stringify(giftPresets[value as keyof typeof giftPresets], null, 2) : "[]",
+    }));
+  };
+
+  const chooseGift = (giftId: string) => {
+    setSelectedGiftId(giftId);
+    const gift = giftCatalog.find((item) => item.giftId === giftId);
+    if (!gift) return;
+    setForm((current) => ({
+      ...current,
+      fakeGifts: JSON.stringify([{ name: "Viewer", giftId: gift.giftId, giftName: gift.name, giftEmoji: gift.emoji || "🎁", coinCost: gift.coinCost || 0, quantity: 1, delaySeconds: 30 }], null, 2),
+    }));
+  };
+
   const save = async () => {
     setSaving(true);
     setError("");
@@ -126,7 +224,7 @@ export const FakeLiveControlPage = () => {
         editingId ? endpoint.updateFakeLive(editingId) : endpoint.fakeLive,
         {
           method: editingId ? "PATCH" : "POST",
-          body: JSON.stringify(form),
+          body: JSON.stringify({ ...form, videoDurationSeconds: videoDuration }),
         },
       );
       setForm({
@@ -135,7 +233,11 @@ export const FakeLiveControlPage = () => {
         videoUrl: "",
         thumbnail: "",
         category: "general",
+        fakeComments: "[]",
+        fakeGifts: "[]",
       });
+      setSelectedGiftId("");
+      setVideoDuration(null);
       setEditingId(null);
       await load();
     } catch (requestError) {
@@ -157,7 +259,10 @@ export const FakeLiveControlPage = () => {
       videoUrl: String(room.playbackUrl || ""),
       thumbnail: String(room.thumbnail || ""),
       category: String(room.category || "general"),
+      fakeComments: JSON.stringify(room.fakeComments || [], null, 2),
+      fakeGifts: JSON.stringify(room.fakeGifts || [], null, 2),
     });
+    setVideoDuration(room.videoDurationSeconds || null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -169,6 +274,8 @@ export const FakeLiveControlPage = () => {
       videoUrl: "",
       thumbnail: "",
       category: "general",
+      fakeComments: "[]",
+      fakeGifts: "[]",
     });
   };
 
@@ -282,6 +389,9 @@ export const FakeLiveControlPage = () => {
               }
               placeholder="https://cdn.example.com/live.mp4"
             />
+            <Text fontSize="xs" color={durationStatus.includes("detected") ? "green.600" : "gray.500"} mt={1}>
+              {durationStatus || "Paste a public video URL to detect its length."}
+            </Text>
           </FormControl>
           <FormControl>
             <FormLabel>Thumbnail URL</FormLabel>
@@ -301,6 +411,30 @@ export const FakeLiveControlPage = () => {
                 setForm({ ...form, category: event.target.value })
               }
             />
+          </FormControl>
+          <FormControl gridColumn={{ md: "span 2" }}>
+            <FormLabel>Fake comments JSON</FormLabel>
+            <Select mb={2} value={commentPreset} onChange={(event) => chooseCommentPreset(event.target.value)}>
+              <option value="">Select a comment preset</option>
+              <option value="welcome">Welcome viewers</option>
+              <option value="hype">High-energy comments</option>
+            </Select>
+            <Textarea minH="110px" fontFamily="mono" fontSize="sm" value={form.fakeComments} onChange={(event) => setForm({ ...form, fakeComments: event.target.value })} placeholder={'[{"name":"Maya","text":"Amazing live!","delaySeconds":20}]'} />
+            <Text fontSize="xs" color="gray.500" mt={1}>Each comment repeats after its own delay in seconds.</Text>
+          </FormControl>
+          <FormControl gridColumn={{ md: "span 2" }}>
+            <FormLabel>Fake gifts JSON</FormLabel>
+            <Select mb={2} value={selectedGiftId} onChange={(event) => chooseGift(event.target.value)}>
+              <option value="">Choose an app gift icon</option>
+              {giftCatalog.map((gift) => <option key={gift.giftId} value={gift.giftId}>{gift.emoji || "🎁"} {gift.name} ({gift.coinCost || 0} coins)</option>)}
+            </Select>
+            <Select mb={2} value={giftPreset} onChange={(event) => chooseGiftPreset(event.target.value)}>
+              <option value="">Select a gift preset</option>
+              <option value="light">Light gifts</option>
+              <option value="celebration">Celebration gifts</option>
+            </Select>
+            <Textarea minH="110px" fontFamily="mono" fontSize="sm" value={form.fakeGifts} onChange={(event) => setForm({ ...form, fakeGifts: event.target.value })} placeholder={'[{"name":"Leo","giftId":"rose","quantity":1,"delaySeconds":45}]'} />
+            <Text fontSize="xs" color="gray.500" mt={1}>Fake gifts are display-only and never affect wallets, profit, or gift totals.</Text>
           </FormControl>
         </SimpleGrid>
         <Button
@@ -343,6 +477,7 @@ export const FakeLiveControlPage = () => {
                   </Th>
                   <Th width="220px">Video URL</Th>
                   <Th width="220px">Thumbnail URL</Th>
+                  <Th width="110px">Length</Th>
                   <Th width="160px">Created</Th>
                   <Th width="220px">Actions</Th>
                 </Tr>
@@ -415,6 +550,7 @@ export const FakeLiveControlPage = () => {
                         <Td isNumeric>{viewerCount(room).toLocaleString()}</Td>
                         <Td>{urlCell(videoUrl)}</Td>
                         <Td>{urlCell(thumbnailUrl)}</Td>
+                        <Td>{room.videoDurationSeconds ? `${Math.floor(room.videoDurationSeconds / 60)}m ${room.videoDurationSeconds % 60}s` : "-"}</Td>
                         <Td whiteSpace="normal">
                           {room.createdAt
                             ? new Date(room.createdAt).toLocaleString()
