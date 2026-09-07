@@ -1,15 +1,17 @@
-﻿import React from 'react';
+﻿import React, { useRef, useState } from 'react';
 import {
+  Animated,
   View,
   Text,
   TextInput,
   FlatList,
-  TouchableOpacity,
-  KeyboardAvoidingView,
-  Platform,
+  Pressable,
+  PanResponder,
   StatusBar,
   StyleSheet,
 } from 'react-native';
+import Icon from '@react-native-vector-icons/material-icons';
+import { KeyboardStickyView } from 'react-native-keyboard-controller';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LiveStreamPlayer } from '../../components/live/LiveStreamPlayer';
@@ -22,6 +24,8 @@ import { useLiveViewerScreen } from './useLiveViewerScreen';
 type Props = NativeStackScreenProps<LiveStackParamList & DiscoverStackParamList, 'LiveViewer'>;
 
 export const LiveViewerScreen = (props: Props) => {
+  const [showActions, setShowActions] = useState(true);
+  const actionsOpacity = useRef(new Animated.Value(1)).current;
   const { bottom } = useSafeAreaInsets();
   const {
     title,
@@ -53,11 +57,31 @@ export const LiveViewerScreen = (props: Props) => {
     formatCount,
   } = useLiveViewerScreen(props);
 
+  const setActionsVisible = (visible: boolean) => {
+    setShowActions(visible);
+    Animated.timing(actionsOpacity, {
+      toValue: visible ? 1 : 0,
+      duration: 180,
+      useNativeDriver: true,
+    }).start();
+  };
+
+  const swipeResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gesture) =>
+        Math.abs(gesture.dx) > 18 && Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onPanResponderRelease: (_, gesture) => {
+        if (gesture.dx > 60) setActionsVisible(false);
+        if (gesture.dx < -60) setActionsVisible(true);
+      },
+    }),
+  ).current;
+
   return (
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      <View style={StyleSheet.absoluteFill}>
+      <View style={StyleSheet.absoluteFill} {...swipeResponder.panHandlers}>
         <LiveStreamPlayer
           title={title}
           hostName={hostName}
@@ -82,10 +106,10 @@ export const LiveViewerScreen = (props: Props) => {
         />
       ))}
 
-      <KeyboardAvoidingView
-        style={StyleSheet.absoluteFill}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      <Animated.View
+        style={[StyleSheet.absoluteFill, { opacity: actionsOpacity }]}
+        pointerEvents={showActions ? 'auto' : 'none'}
+        {...swipeResponder.panHandlers}
       >
         <View style={styles.topBar}>
           <View style={styles.hostChip}>
@@ -105,24 +129,28 @@ export const LiveViewerScreen = (props: Props) => {
               <Text style={styles.viewerIcon}>👁</Text>
               <Text style={styles.viewerText}>{formatCount(viewerCount)}</Text>
             </View>
-            <TouchableOpacity onPress={() => props.navigation.goBack()} style={styles.closeBtn}>
-              <Text style={styles.closeBtnText}>✕</Text>
-            </TouchableOpacity>
+            <Pressable onPress={() => props.navigation.goBack()} style={styles.closeBtn} hitSlop={8}>
+              <Icon name="close" size={20} color="#fff" />
+            </Pressable>
           </View>
         </View>
 
-        <FlatList
-          ref={chatListRef}
-          data={messages}
-          keyExtractor={(item) => item.id}
+        <KeyboardStickyView
+          offset={{ opened: 0, closed: 0 }}
           style={[
-            styles.chatList,
+            styles.chatSticky,
             isCompact ? styles.chatListCompact : styles.chatListWide,
-            styles.chatListFixedHeight,
+            keyboardVisible ? styles.chatListKeyboard : styles.chatListNormal,
           ]}
-          contentContainerStyle={styles.chatListContent}
-          showsVerticalScrollIndicator={false}
-          renderItem={({ item }) =>
+        >
+          <FlatList
+            ref={chatListRef}
+            data={messages}
+            keyExtractor={(item) => item.id}
+            style={styles.chatList}
+            contentContainerStyle={styles.chatListContent}
+            showsVerticalScrollIndicator={false}
+            renderItem={({ item }) =>
             item.type === 'gift' ? (
               <View style={styles.chatRow}>
                 <View style={[styles.chatAvatar, item.isMine && styles.chatAvatarMine]} />
@@ -142,39 +170,48 @@ export const LiveViewerScreen = (props: Props) => {
                 </View>
               </View>
             )
-          }
-        />
+            }
+          />
+        </KeyboardStickyView>
 
-        <View style={[styles.bottomBar, { bottom: Math.max(12, bottom + 8) }]}>
-          <View style={styles.inputWrap}>
+        <KeyboardStickyView
+          offset={{ opened: 0, closed: 0 }}
+          style={[styles.bottomBar, { bottom: Math.max(12, bottom + 8) }]}
+        >
+          <View style={styles.composerRow}>
+            <View style={styles.inputWrap}>
+              <Icon name="chat-bubble-outline" size={20} color="rgba(255,255,255,0.7)" />
             <TextInput
-              style={styles.input}
-              value={chatText}
-              onChangeText={setChatText}
-              placeholder="Say something..."
-              placeholderTextColor="rgba(255,255,255,0.62)"
-              onSubmitEditing={sendChat}
-              returnKeyType="send"
-              blurOnSubmit={false}
-            />
-            <TouchableOpacity onPress={sendChat} style={styles.sendBtn}>
-              <Text style={styles.sendBtnText}>➤</Text>
-            </TouchableOpacity>
+                style={styles.input}
+                value={chatText}
+                onChangeText={setChatText}
+                placeholder="Say something..."
+                placeholderTextColor="rgba(255,255,255,0.62)"
+                onSubmitEditing={sendChat}
+                returnKeyType="send"
+                blurOnSubmit={false}
+              />
+              <Pressable onPress={sendChat} style={styles.sendBtn} hitSlop={6}>
+                <Icon name="send" size={18} color="#fff" />
+              </Pressable>
+            </View>
+            {!keyboardVisible && showActions && (
+              <Pressable style={styles.giftButton} onPress={() => setGiftModalVisible(true)}>
+                <Icon name="card-giftcard" size={21} color="#ffbe0b" />
+              </Pressable>
+            )}
           </View>
 
-          {!keyboardVisible && (
-            <View style={styles.quickActions}>
-              <TouchableOpacity style={styles.quickAction} onPress={() => setGiftModalVisible(true)}>
-                <Text style={styles.quickActionIcon}>🎁</Text>
-                <Text style={styles.quickActionLabel}>Gifts</Text>
-              </TouchableOpacity>
+          {!keyboardVisible && showActions && (
+            <Animated.View style={[styles.quickActions, { opacity: actionsOpacity }]}>
               <View style={styles.coinChip}>
-                <Text style={styles.coinChipText}>🪙 {coinBalance.toLocaleString()}</Text>
+                <Icon name="monetization-on" size={16} color="#f5c518" />
+                <Text style={styles.coinChipText}>{coinBalance.toLocaleString()}</Text>
               </View>
-            </View>
+            </Animated.View>
           )}
-        </View>
-      </KeyboardAvoidingView>
+        </KeyboardStickyView>
+      </Animated.View>
 
       <GiftPickerModal
         visible={giftModalVisible}
