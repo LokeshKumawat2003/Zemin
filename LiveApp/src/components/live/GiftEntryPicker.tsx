@@ -10,6 +10,7 @@ import {
 import { colors, spacing } from '../../theme';
 import { walletApi } from '../../api';
 import { getGiftEmoji, GiftItem } from './LiveGiftEffects';
+import Icon from '@react-native-vector-icons/material-icons';
 
 type Props = {
   selectedGiftId?: string;
@@ -69,7 +70,10 @@ export const GiftEntryPicker = ({
               <Text style={styles.giftName} numberOfLines={1}>
                 {gift.name}
               </Text>
-              <Text style={styles.giftCost}>🪙 {gift.coinCost}</Text>
+              <View style={styles.giftCostRow}>
+                <Icon name="monetization-on" size={14} color="#f5b400" />
+                <Text style={styles.giftCost}>{Number(gift.coinCost) || 0} coins</Text>
+              </View>
               {selected ? <Text style={styles.selectedBadge}>{selectedLabel}</Text> : null}
             </TouchableOpacity>
           );
@@ -127,6 +131,11 @@ const styles = StyleSheet.create({
     color: '#f5b400',
     fontSize: 11,
     fontWeight: '700',
+  },
+  giftCostRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
     marginTop: 4,
   },
   selectedBadge: {
