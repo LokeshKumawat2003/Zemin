@@ -15,6 +15,8 @@ type Props = {
   livekitEnabled?: boolean;
     playbackType?: 'livekit' | 'video';
     playbackUrl?: string;
+    paused?: boolean;
+    muted?: boolean;
   connecting?: boolean;
   error?: string | null;
   onConnected?: () => void;
@@ -30,6 +32,8 @@ export const LiveStreamPlayer = ({
   livekitEnabled,
     playbackType = 'livekit',
     playbackUrl,
+  paused = false,
+  muted = false,
   connecting = true,
   error = null,
   onConnected,
@@ -50,7 +54,8 @@ export const LiveStreamPlayer = ({
             style={StyleSheet.absoluteFill}
             resizeMode="cover"
             repeat
-            paused={false}
+            paused={paused}
+            muted={muted}
             onLoad={onConnected}
             onError={() => onStreamError?.('The scheduled video could not be loaded.')}
           />

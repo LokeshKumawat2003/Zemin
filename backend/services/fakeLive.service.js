@@ -129,6 +129,63 @@ const schedule = (room, item, callback) => {
   return timeout;
 };
 
+const convertToPrivate = async (roomId) => {
+  const room = await LiveRoom.findById(roomId);
+  if (!room || room.status !== "live" || room.playbackType !== "video" || room.roomType === "vip") return;
+  const conversionSeconds = Number(room.autoPrivateAfterSeconds || room.videoDurationSeconds);
+  const elapsedSeconds = room.playbackStartedAt
+    ? Math.max(0, (Date.now() - new Date(room.playbackStartedAt).getTime()) / 1000)
+    : 0;
+  if (Number.isFinite(conversionSeconds) && conversionSeconds > elapsedSeconds) {
+    const retry = setTimeout(() => convertToPrivate(roomId).catch(() => {}), (conversionSeconds - elapsedSeconds) * 1000);
+    const handles = timers.get(String(roomId));
+    if (handles) handles.push(retry);
+    return;
+  }
+  const gift = await Gift.findOne({ giftId: room.autoPrivateEntryGiftId, isActive: true }).lean();
+  if (!gift) return;
+
+  room.roomType = "vip";
+  room.visibility = "subscribers";
+  room.category = "vip";
+  room.entryGiftId = gift.giftId;
+  room.entryFeeCoins = gift.coinCost;
+  room.maxViewers = 1000000;
+  room.maxGuests = 1000000;
+  room.enableGuest = true;
+  const { getIO } = require("../sockets");
+  const io = getIO();
+  const roomName = `live:${roomId}`;
+  const preservedViewerIds = io
+    ? [...io.sockets.sockets.values()]
+        .filter((socket) => socket.rooms.has(roomName) && socket.userId !== String(room.userId))
+        .map((socket) => socket.userId)
+    : [];
+  await room.save();
+
+  if (io) {
+    io.to(roomName).emit("live:privacy_changed", {
+      roomId: String(roomId),
+      roomType: "vip",
+      entryGiftId: gift.giftId,
+      entryFeeCoins: gift.coinCost,
+      entryGift: { giftId: gift.giftId, name: gift.name, emoji: gift.emoji, coinCost: gift.coinCost },
+      preservedViewerIds,
+    });
+  }
+};
+
+const schedulePrivateConversion = (room) => {
+  if (!room.autoConvertToPrivate || room.roomType === "vip") return null;
+  const seconds = Number(room.autoPrivateAfterSeconds || room.videoDurationSeconds);
+  if (!Number.isFinite(seconds) || seconds <= 0 || !room.autoPrivateEntryGiftId) return null;
+  if (!room.playbackStartedAt) return null;
+  const elapsed = Math.max(0, (Date.now() - new Date(room.playbackStartedAt).getTime()) / 1000);
+  const delay = Math.max(1, seconds - elapsed) * 1000;
+  const timeout = setTimeout(() => convertToPrivate(room._id).catch(() => {}), delay);
+  return timeout;
+};
+
 const stop = (roomId) => {
   const handles = timers.get(String(roomId)) || [];
   handles.forEach(clearTimeout);
@@ -144,6 +201,8 @@ const start = (room) => {
   stop(room._id);
   if (room.status !== "live" || room.playbackType !== "video") return;
   const handles = [];
+  const privateConversion = schedulePrivateConversion(room);
+  if (privateConversion) handles.push(privateConversion);
   (room.fakeComments || []).forEach((item) =>
     handles.push(
       schedule(room, item, async (id, value) => emitComment(id, value)),
@@ -170,4 +229,5 @@ module.exports = {
   stop,
   resetFakeViewers,
   startActiveRooms,
+  convertToPrivate,
 };

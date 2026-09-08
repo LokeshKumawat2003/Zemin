@@ -9,6 +9,7 @@ const Subscription = require('../models/Subscription.model');
 const AppError = require('../utils/AppError');
 const livekitService = require('./livekit.service');
 const notificationService = require('./notification.service');
+const fakeLiveService = require('./fakeLive.service');
 const { giftService } = require('./wallet.service');
 
 class LiveService {
@@ -375,6 +376,17 @@ class LiveService {
     const room = await LiveRoom.findById(roomId).populate('userId', 'username displayName avatar isVerified blockedUsers');
     if (!room) throw new AppError('NOT_FOUND', 404, 'Live room not found');
     if (room.status !== 'live') throw new AppError('LIVE_ROOM_ENDED', 400, 'Stream is not live');
+
+    if (
+      room.playbackType === 'video' &&
+      room.roomType !== 'vip' &&
+      room.autoConvertToPrivate &&
+      !room.playbackStartedAt
+    ) {
+      room.playbackStartedAt = new Date();
+      await room.save();
+      fakeLiveService.restart(room);
+    }
 
     const isHost = String(room.userId?._id || room.userId) === String(userId);
     const isRemoved = room.removedUserIds?.some((removedUserId) => String(removedUserId) === String(userId));

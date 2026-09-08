@@ -100,7 +100,9 @@ export const LiveViewerScreen = (props: Props) => {
           livekitEnabled={livekitEnabled}
           playbackType={playbackType}
           playbackUrl={playbackUrl}
-          connecting={streamConnecting}
+          paused={false}
+          muted={privateLockVisible}
+          connecting={playbackType !== 'video' && streamConnecting && !privateLockVisible}
           error={streamError}
           onConnected={handleStreamConnected}
           onStreamError={handleStreamError}
@@ -111,7 +113,7 @@ export const LiveViewerScreen = (props: Props) => {
             <Text style={styles.privateLockIcon}>🔒</Text>
             <Text style={styles.privateLockTitle}>Private live</Text>
             <Text style={styles.privateLockText}>
-              Send {entryGiftEmoji || '🎁'} {entryGiftName || 'the entry gift'} ({entryGiftCost} coins) to unlock this live.
+              Send {entryGiftEmoji || '🎁'} {entryGiftName || 'Entry gift'} ({entryGiftCost} coins) to unlock this live.
             </Text>
             <Pressable style={[styles.privateJoinButton, unlockingPrivateLive && styles.privateJoinButtonDisabled]} onPress={unlockPrivateLive} disabled={unlockingPrivateLive}>
               <Text style={styles.privateJoinButtonText}>{unlockingPrivateLive ? 'Joining...' : 'Send gift & join'}</Text>

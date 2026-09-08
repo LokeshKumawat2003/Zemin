@@ -4,6 +4,7 @@ import {
   Badge,
   Box,
   Button,
+  Checkbox,
   Flex,
   FormControl,
   FormLabel,
@@ -36,6 +37,9 @@ type FakeRoom = ApiRecord & {
   playbackType?: string;
   playbackUrl?: string;
   videoDurationSeconds?: number;
+  autoConvertToPrivate?: boolean;
+  autoPrivateAfterSeconds?: number;
+  autoPrivateEntryGiftId?: string;
   thumbnail?: string;
   category?: string;
   fakeComments?: unknown[];
@@ -85,6 +89,20 @@ const compactUrl = (value?: string) => {
   return `${value.slice(0, 16)}...${value.slice(-14)}`;
 };
 
+const secondsToTimeValue = (seconds: number | null) => {
+  if (!seconds || seconds < 0) return "";
+  const hours = Math.floor(seconds / 3600).toString().padStart(2, "0");
+  const minutes = Math.floor((seconds % 3600) / 60).toString().padStart(2, "0");
+  const remainingSeconds = Math.floor(seconds % 60).toString().padStart(2, "0");
+  return `${hours}:${minutes}:${remainingSeconds}`;
+};
+
+const timeValueToSeconds = (value: string) => {
+  const parts = value.split(":").map(Number);
+  if (parts.length !== 3 || parts.some((part) => !Number.isFinite(part))) return null;
+  return parts[0] * 3600 + parts[1] * 60 + parts[2];
+};
+
 const commentPresets = {
   welcome: [
     { name: "Maya", text: "Amazing live!", delaySeconds: 20 },
@@ -123,6 +141,9 @@ export const FakeLiveControlPage = () => {
     videoUrl: "",
     thumbnail: "",
     category: "general",
+    autoConvertToPrivate: false,
+    autoPrivateAfterSeconds: "",
+    autoPrivateEntryGiftId: "",
     fakeComments: "[]",
     fakeGifts: "[]",
   });
@@ -131,6 +152,7 @@ export const FakeLiveControlPage = () => {
   const [giftCatalog, setGiftCatalog] = useState<GiftOption[]>([]);
   const [selectedGiftId, setSelectedGiftId] = useState("");
   const [videoDuration, setVideoDuration] = useState<number | null>(null);
+  const [detectedVideoDuration, setDetectedVideoDuration] = useState<number | null>(null);
   const [durationStatus, setDurationStatus] = useState("");
 
   const load = useCallback(async () => {
@@ -169,6 +191,7 @@ export const FakeLiveControlPage = () => {
 
   useEffect(() => {
     setVideoDuration(null);
+    setDetectedVideoDuration(null);
     if (!form.videoUrl) {
       setDurationStatus("");
       return;
@@ -178,6 +201,7 @@ export const FakeLiveControlPage = () => {
     video.preload = "metadata";
     video.onloadedmetadata = () => {
       const seconds = Number.isFinite(video.duration) ? Math.round(video.duration) : null;
+      setDetectedVideoDuration(seconds);
       setVideoDuration(seconds);
       setDurationStatus(seconds ? `${Math.floor(seconds / 60)}m ${seconds % 60}s detected` : "Duration unavailable");
     };
@@ -233,11 +257,15 @@ export const FakeLiveControlPage = () => {
         videoUrl: "",
         thumbnail: "",
         category: "general",
+        autoConvertToPrivate: false,
+        autoPrivateAfterSeconds: "",
+        autoPrivateEntryGiftId: "",
         fakeComments: "[]",
         fakeGifts: "[]",
       });
       setSelectedGiftId("");
       setVideoDuration(null);
+      setDetectedVideoDuration(null);
       setEditingId(null);
       await load();
     } catch (requestError) {
@@ -259,10 +287,14 @@ export const FakeLiveControlPage = () => {
       videoUrl: String(room.playbackUrl || ""),
       thumbnail: String(room.thumbnail || ""),
       category: String(room.category || "general"),
+      autoConvertToPrivate: Boolean(room.autoConvertToPrivate),
+      autoPrivateAfterSeconds: room.autoPrivateAfterSeconds ? String(room.autoPrivateAfterSeconds) : "",
+      autoPrivateEntryGiftId: String(room.autoPrivateEntryGiftId || ""),
       fakeComments: JSON.stringify(room.fakeComments || [], null, 2),
       fakeGifts: JSON.stringify(room.fakeGifts || [], null, 2),
     });
     setVideoDuration(room.videoDurationSeconds || null);
+    setDetectedVideoDuration(room.videoDurationSeconds || null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -274,9 +306,14 @@ export const FakeLiveControlPage = () => {
       videoUrl: "",
       thumbnail: "",
       category: "general",
+      autoConvertToPrivate: false,
+      autoPrivateAfterSeconds: "",
+      autoPrivateEntryGiftId: "",
       fakeComments: "[]",
       fakeGifts: "[]",
     });
+    setVideoDuration(null);
+    setDetectedVideoDuration(null);
   };
 
   const deleteRoom = async (roomId: string) => {
@@ -334,6 +371,12 @@ export const FakeLiveControlPage = () => {
     window.setTimeout(() => setCopiedUrl(""), 1600);
   };
 
+  const maximumVideoDuration = detectedVideoDuration ?? videoDuration;
+  const selectedConversionSeconds = Number(form.autoPrivateAfterSeconds) || videoDuration || 0;
+  const conversionProgress = maximumVideoDuration
+    ? Math.min(100, (selectedConversionSeconds / maximumVideoDuration) * 100)
+    : 0;
+
   return (
     <VStack align="stretch" spacing={5}>
       <Box>
@@ -370,6 +413,62 @@ export const FakeLiveControlPage = () => {
               placeholder="MongoDB user ID"
             />
           </FormControl>
+          <FormControl gridColumn={{ md: "span 2" }}>
+            <Checkbox
+              isChecked={form.autoConvertToPrivate}
+              onChange={(event) => setForm({ ...form, autoConvertToPrivate: event.target.checked })}
+            >
+              Automatically convert this public fake live to private
+            </Checkbox>
+            <Text fontSize="xs" color="gray.500" mt={1}>
+              Conversion runs on the server, even if this admin page is closed.
+            </Text>
+          </FormControl>
+          {form.autoConvertToPrivate && (
+            <>
+              <FormControl>
+                <FormLabel>Convert after</FormLabel>
+                <Input
+                  type="time"
+                  step={1}
+                  max={secondsToTimeValue(maximumVideoDuration)}
+                  value={secondsToTimeValue(selectedConversionSeconds)}
+                  onChange={(event) => {
+                    const requestedSeconds = timeValueToSeconds(event.target.value);
+                    const seconds = requestedSeconds === null
+                      ? null
+                      : maximumVideoDuration
+                        ? Math.min(requestedSeconds, maximumVideoDuration)
+                        : requestedSeconds;
+                    setForm({ ...form, autoPrivateAfterSeconds: seconds === null ? "" : String(seconds) });
+                  }}
+                />
+                <Text fontSize="xs" color="gray.500" mt={1}>
+                  Maximum: {secondsToTimeValue(maximumVideoDuration) || "waiting for video length"}.
+                </Text>
+                <Box mt={2} h="8px" bg="gray.100" borderRadius="full" overflow="hidden">
+                  <Box h="100%" w={`${conversionProgress}%`} bg="brand.500" transition="width 0.2s" />
+                </Box>
+                <Text fontSize="xs" color="gray.600" mt={1}>
+                  {secondsToTimeValue(selectedConversionSeconds) || "00:00:00"} / {secondsToTimeValue(maximumVideoDuration) || "00:00:00"}
+                </Text>
+              </FormControl>
+              <FormControl>
+                <FormLabel>New viewer entry gift</FormLabel>
+                <Select
+                  value={form.autoPrivateEntryGiftId}
+                  onChange={(event) => setForm({ ...form, autoPrivateEntryGiftId: event.target.value })}
+                >
+                  <option value="">Choose entry gift</option>
+                  {giftCatalog.map((gift) => (
+                    <option key={gift.giftId} value={gift.giftId}>
+                      {gift.emoji || "🎁"} {gift.name} ({gift.coinCost || 0} coins)
+                    </option>
+                  ))}
+                </Select>
+              </FormControl>
+            </>
+          )}
           <FormControl>
             <FormLabel>Live title</FormLabel>
             <Input
@@ -391,6 +490,29 @@ export const FakeLiveControlPage = () => {
             />
             <Text fontSize="xs" color={durationStatus.includes("detected") ? "green.600" : "gray.500"} mt={1}>
               {durationStatus || "Paste a public video URL to detect its length."}
+            </Text>
+            <FormLabel mt={3}>Video length</FormLabel>
+            <Input
+              type="time"
+              step={1}
+              max={secondsToTimeValue(detectedVideoDuration)}
+              value={secondsToTimeValue(videoDuration)}
+              onChange={(event) => {
+                const requestedSeconds = timeValueToSeconds(event.target.value);
+                const seconds = requestedSeconds === null
+                  ? null
+                  : detectedVideoDuration
+                    ? Math.min(requestedSeconds, detectedVideoDuration)
+                    : requestedSeconds;
+                setVideoDuration(seconds);
+                if (seconds !== null && Number(form.autoPrivateAfterSeconds) > seconds) {
+                  setForm({ ...form, autoPrivateAfterSeconds: String(seconds) });
+                }
+                setDurationStatus(seconds === null ? "Duration unavailable" : "Manual duration selected");
+              }}
+            />
+            <Text fontSize="xs" color="gray.500" mt={1}>
+              Video length: {secondsToTimeValue(detectedVideoDuration) || "not detected yet"}. You cannot select longer than the video.
             </Text>
           </FormControl>
           <FormControl>

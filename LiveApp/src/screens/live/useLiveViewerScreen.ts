@@ -239,19 +239,47 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
     const cleanup = socketManager.onLivePrivacyChanged((data) => {
       if (data.roomId !== roomId) return;
       setRoomType('vip');
-      if (data.preservedViewerIds?.includes(userId || '')) return;
       setPrivateLockVisible(true);
       setHasLiveAccess(false);
-      setEntryGiftCost(data.entryFeeCoins ?? 0);
-      setEntryGiftName(data.entryGift?.name);
-      setEntryGiftEmoji(data.entryGift?.emoji);
+      setStreamConnecting(false);
+      setEntryGiftCost(data.entryGift?.coinCost ?? data.entryFeeCoins ?? entryGiftCost);
+      setEntryGiftName(data.entryGift?.name || entryGiftName || 'Entry gift');
+      setEntryGiftEmoji(data.entryGift?.emoji || entryGiftEmoji);
       setWebrtcToken(undefined);
       setLivekitEnabled(false);
     });
     return () => {
       cleanup?.();
     };
-  }, [roomId, userId]);
+  }, [roomId, userId, entryGiftCost, entryGiftName, entryGiftEmoji]);
+
+  useEffect(() => {
+    if (roomType === 'vip' || (hasLiveAccess === false && privateLockVisible)) return undefined;
+
+    const syncRoomPrivacy = async () => {
+      try {
+        const response = await liveApi.getRoom(roomId);
+        const room = response.data;
+        if (room?.roomType !== 'vip' || !hasLiveAccess) return;
+
+        setRoomType('vip');
+        setPrivateLockVisible(true);
+        setHasLiveAccess(false);
+        setStreamConnecting(false);
+        setEntryGiftName(room.entryGift?.name || entryGiftName || 'Entry gift');
+        setEntryGiftEmoji(room.entryGift?.emoji || entryGiftEmoji);
+        setEntryGiftCost(room.entryGift?.coinCost ?? room.entryFeeCoins ?? entryGiftCost);
+        setWebrtcToken(undefined);
+        setLivekitEnabled(false);
+      } catch {
+        // The socket event remains the fast path when room polling is unavailable.
+      }
+    };
+
+    syncRoomPrivacy();
+    const interval = setInterval(syncRoomPrivacy, 2000);
+    return () => clearInterval(interval);
+  }, [roomId, roomType, hasLiveAccess, privateLockVisible, entryGiftName, entryGiftEmoji, entryGiftCost]);
 
   const unlockPrivateLive = useCallback(async () => {
     if (unlockingPrivateLive) return;
@@ -268,7 +296,7 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
       setEntryGiftCost(data?.entryGift?.coinCost ?? data?.entryFeeCoins ?? 0);
       setHasLiveAccess(true);
       setPrivateLockVisible(false);
-      setStreamConnecting(true);
+      setStreamConnecting(playbackType !== 'video');
     } catch (e: any) {
       Alert.alert('Cannot join', e?.error?.message || 'Send the entry gift to join this private live.');
     } finally {

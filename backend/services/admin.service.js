@@ -9,6 +9,7 @@ const Payout = require('../models/Payout.model');
 const Conversation = require('../models/Conversation.model');
 const Message = require('../models/Message.model');
 const Creator = require('../models/Creator.model');
+const Gift = require('../models/Gift.model');
 const BankPaymentMethod = require('../models/BankPaymentMethod.model');
 const UpiPaymentMethod = require('../models/UpiPaymentMethod.model');
 const AppError = require('../utils/AppError');
@@ -951,7 +952,7 @@ class AdminService {
   }
 
   // ==== Live Management ====
-  async createFakeLiveStream({ userId, title, videoUrl, thumbnail, category, videoDurationSeconds, fakeComments, fakeGifts, adminId }) {
+  async createFakeLiveStream({ userId, title, videoUrl, thumbnail, category, videoDurationSeconds, autoConvertToPrivate, autoPrivateAfterSeconds, autoPrivateEntryGiftId, fakeComments, fakeGifts, adminId }) {
     const { User: AuthUser } = getAuthModels();
     if (!userId || !require('mongoose').isValidObjectId(userId)) {
       throw new AppError('VALIDATION_ERROR', 400, 'A valid host user ID is required');
@@ -967,6 +968,17 @@ class AdminService {
 
     const host = await AuthUser.findById(userId).select('_id username email displayName avatar isVerified');
     if (!host) throw new AppError('NOT_FOUND', 404, 'Host user not found');
+    if (Boolean(autoConvertToPrivate)) {
+      const conversionSeconds = Number(autoPrivateAfterSeconds) > 0 ? Number(autoPrivateAfterSeconds) : Number(videoDurationSeconds);
+      if (!conversionSeconds || conversionSeconds <= 0) {
+        throw new AppError('VALIDATION_ERROR', 400, 'Provide a video duration or conversion delay for automatic private conversion');
+      }
+      if (Number(videoDurationSeconds) > 0 && conversionSeconds > Number(videoDurationSeconds)) {
+        throw new AppError('VALIDATION_ERROR', 400, 'Private conversion time cannot be longer than the video duration');
+      }
+      const entryGift = await Gift.findOne({ giftId: autoPrivateEntryGiftId, isActive: true }).select('giftId');
+      if (!entryGift) throw new AppError('VALIDATION_ERROR', 400, 'Choose a valid entry gift for automatic private conversion');
+    }
 
     const stream = await LiveRoom.create({
       userId,
@@ -975,7 +987,22 @@ class AdminService {
       thumbnail,
       playbackType: 'video',
       playbackUrl: videoUrl,
+      playbackStartedAt: null,
+      roomType: 'public',
+      visibility: 'public',
+      entryFeeCoins: 0,
+      entryGiftId: undefined,
+      paidEntries: [],
       videoDurationSeconds: Number(videoDurationSeconds) > 0 ? Number(videoDurationSeconds) : undefined,
+      autoConvertToPrivate: Boolean(autoConvertToPrivate),
+      autoPrivateAfterSeconds: Boolean(autoConvertToPrivate)
+        ? Number(autoPrivateAfterSeconds) > 0
+          ? Number(autoPrivateAfterSeconds)
+          : Number(videoDurationSeconds) > 0
+            ? Number(videoDurationSeconds)
+            : undefined
+        : undefined,
+      autoPrivateEntryGiftId: Boolean(autoConvertToPrivate) ? String(autoPrivateEntryGiftId || '') : undefined,
       fakeComments: fakeLiveService.normalizeComments(fakeComments),
       fakeGifts: fakeLiveService.normalizeGifts(fakeGifts),
       streamKey: `sk_fake_${require('crypto').randomBytes(12).toString('hex')}`,
@@ -997,7 +1024,14 @@ class AdminService {
     const stream = await LiveRoom.findOne({ _id: liveId, playbackType: 'video' });
     if (!stream) throw new AppError('NOT_FOUND', 404, 'Fake live stream not found');
     stream.status = 'live';
+    stream.roomType = 'public';
+    stream.visibility = 'public';
+    stream.category = stream.category === 'vip' ? 'general' : stream.category;
+    stream.entryFeeCoins = 0;
+    stream.entryGiftId = undefined;
+    stream.paidEntries = [];
     stream.startedAt = new Date();
+    stream.playbackStartedAt = null;
     stream.endedAt = undefined;
     stream.stats.currentViewers = 0;
     await fakeLiveService.resetFakeViewers(liveId);
@@ -1019,15 +1053,45 @@ class AdminService {
     } catch {
       throw new AppError('VALIDATION_ERROR', 400, 'A valid video URL is required');
     }
+    if (Boolean(data.autoConvertToPrivate)) {
+      const conversionSeconds = Number(data.autoPrivateAfterSeconds) > 0 ? Number(data.autoPrivateAfterSeconds) : Number(data.videoDurationSeconds);
+      if (!conversionSeconds || conversionSeconds <= 0) {
+        throw new AppError('VALIDATION_ERROR', 400, 'Provide a video duration or conversion delay for automatic private conversion');
+      }
+      if (Number(data.videoDurationSeconds) > 0 && conversionSeconds > Number(data.videoDurationSeconds)) {
+        throw new AppError('VALIDATION_ERROR', 400, 'Private conversion time cannot be longer than the video duration');
+      }
+      const entryGift = await Gift.findOne({ giftId: data.autoPrivateEntryGiftId, isActive: true }).select('giftId');
+      if (!entryGift) throw new AppError('VALIDATION_ERROR', 400, 'Choose a valid entry gift for automatic private conversion');
+    }
 
     stream.title = String(data.title).trim();
     stream.playbackUrl = data.videoUrl;
+    stream.roomType = 'public';
+    stream.visibility = 'public';
+    stream.entryFeeCoins = 0;
+    stream.entryGiftId = undefined;
+    stream.paidEntries = [];
     stream.videoDurationSeconds = Number(data.videoDurationSeconds) > 0 ? Number(data.videoDurationSeconds) : undefined;
+    stream.autoConvertToPrivate = Boolean(data.autoConvertToPrivate);
+    stream.autoPrivateAfterSeconds = Boolean(data.autoConvertToPrivate)
+      ? Number(data.autoPrivateAfterSeconds) > 0
+        ? Number(data.autoPrivateAfterSeconds)
+        : stream.videoDurationSeconds
+      : undefined;
+    stream.autoPrivateEntryGiftId = Boolean(data.autoConvertToPrivate)
+      ? String(data.autoPrivateEntryGiftId || '')
+      : undefined;
     stream.thumbnail = data.thumbnail || undefined;
     stream.category = data.category || 'general';
     stream.fakeComments = fakeLiveService.normalizeComments(data.fakeComments);
     stream.fakeGifts = fakeLiveService.normalizeGifts(data.fakeGifts);
     stream.fakeViewerIds = [];
+    stream.playbackStartedAt = null;
+    if (stream.status === 'live') {
+      stream.startedAt = new Date();
+      stream.endedAt = undefined;
+    }
     await stream.save();
     fakeLiveService.restart(stream);
     await AdminAction.create({ adminId, action: 'update_fake_live', targetType: 'live', targetId: liveId });
