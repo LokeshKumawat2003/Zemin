@@ -36,6 +36,7 @@ export const useCreatePost = ({ onPublished }: Props) => {
         const formData = new FormData();
         formData.append('file', { uri: mediaUri, type: 'image/jpeg', name: 'post-image.jpg' } as any);
         formData.append('folder', 'posts');
+        formData.append('visibility', visibility);
         const upload = await uploadApi.uploadMedia(formData);
         uploadedUrl = upload.data?.url;
         if (!uploadedUrl) throw new Error('Image upload failed');

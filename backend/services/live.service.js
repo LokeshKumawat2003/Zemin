@@ -11,6 +11,7 @@ const livekitService = require('./livekit.service');
 const notificationService = require('./notification.service');
 const fakeLiveService = require('./fakeLive.service');
 const { giftService } = require('./wallet.service');
+const { getAuthModels } = require('../config/database');
 
 class LiveService {
   calculateCreatorEarnings({ entryFeeCoins = 0, giftCoins = 0, durationSeconds = 0 }) {
@@ -111,6 +112,7 @@ class LiveService {
   }
 
   async createRoom(userId, data) {
+    if (data.roomType !== 'vip') await this.assertPublicStreamingAllowed(userId);
     const creator = await this.ensureCreatorAccount(userId);
 
     const roomType = data.roomType === 'vip' ? 'vip' : 'public';
@@ -201,6 +203,7 @@ class LiveService {
   async startRoom(userId, roomId) {
     const room = await LiveRoom.findOne({ _id: roomId, userId });
     if (!room) throw new AppError('NOT_FOUND', 404, 'Live room not found');
+    if (room.roomType !== 'vip') await this.assertPublicStreamingAllowed(userId);
     if (room.status === 'ended') throw new AppError('LIVE_ROOM_ENDED', 400, 'Stream has ended');
     if (room.status === 'live') {
       const webrtcToken =
@@ -272,6 +275,21 @@ class LiveService {
       livekitRoom: room.livekitRoom,
       livekitEnabled: livekitService.isReady(),
     };
+  }
+
+  async assertPublicStreamingAllowed(userId) {
+    const { User: AuthUser } = getAuthModels();
+    const user = await AuthUser.findById(userId).select('isBanned suspendedUntil streamingDisabled');
+    if (!user) throw new AppError('NOT_FOUND', 404, 'User not found');
+    if (user.isBanned) throw new AppError('ACCOUNT_BANNED', 403, 'Account has been blocked');
+    if (user.suspendedUntil && user.suspendedUntil > new Date()) {
+      throw new AppError('ACCOUNT_SUSPENDED', 403, 'Account is temporarily suspended', {
+        suspendedUntil: user.suspendedUntil,
+      });
+    }
+    if (user.streamingDisabled) {
+      throw new AppError('STREAMING_DISABLED', 403, 'Public streaming is disabled for this account');
+    }
   }
 
   async convertRoomToVip(userId, roomId, entryGiftId, preservedViewerIds = []) {

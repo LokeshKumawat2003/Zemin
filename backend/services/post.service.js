@@ -10,6 +10,7 @@ const Gift = require('../models/Gift.model');
 const AppError = require('../utils/AppError');
 const notificationService = require('./notification.service');
 const { giftService } = require('./wallet.service');
+const { enforcePublicPostUrl } = require('./imageModeration.service');
 
 class PostService {
   async createPost(userId, data) {
@@ -28,6 +29,11 @@ class PostService {
       await giftService.ensureDefaultGifts();
       const gift = await Gift.findOne({ giftId: unlockGiftId, isActive: true });
       if (!gift) throw new AppError('GIFT_NOT_FOUND', 404, 'Unlock gift not found');
+    }
+
+    if ((data.visibility || 'public') === 'public') {
+      const imageMedia = (data.media || []).filter((media) => media.type === 'image' && media.url);
+      for (const media of imageMedia) await enforcePublicPostUrl(media.url, userId);
     }
 
     const post = await Post.create({

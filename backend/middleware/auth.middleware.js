@@ -20,6 +20,11 @@ const authenticate = async (req, res, next) => {
     if (user.isBanned) {
       throw new AppError('ACCOUNT_BANNED', 403, 'Account has been suspended');
     }
+    if (user.suspendedUntil && user.suspendedUntil > new Date()) {
+      throw new AppError('ACCOUNT_SUSPENDED', 403, 'Account is suspended temporarily', {
+        suspendedUntil: user.suspendedUntil,
+      });
+    }
 
     req.user = user;
     next();

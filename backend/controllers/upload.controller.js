@@ -5,6 +5,12 @@ const cloudinary = require('cloudinary').v2;
 const { uploadDir, cloudinary: cloudinaryConfig } = require('../config/env');
 const { success } = require('../utils/response.util');
 const AppError = require('../utils/AppError');
+const {
+  enforceScan,
+  recordProfileViolation,
+  enforcePublicImage,
+  enforcePublicPostImage,
+} = require('../services/imageModeration.service');
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -48,11 +54,34 @@ exports.uploadMedia = (req, res, next) => {
     if (err) return next(err);
     if (!req.file) return next(new AppError('VALIDATION_ERROR', 400, 'File required'));
 
-    const folder = req.body.folder === 'avatars' ? 'avatars' : 'posts';
+    const folder = ['avatars', 'live'].includes(req.body.folder) ? req.body.folder : 'posts';
     const type = req.body.type || (req.file.mimetype.startsWith('video') ? 'video' : 'image');
 
+    if (type === 'image' && req.body.folder === 'avatars') {
+      enforceScan(req.file.path, 'profile').then((result) => {
+        if (result.isNsfw) return recordProfileViolation(req.user._id);
+        return null;
+      }).then(() => continueUpload()).catch(next);
+      return;
+    }
+
+    if (type === 'image' && req.body.folder === 'live' && req.body.roomType !== 'vip') {
+      enforcePublicImage(req.file.path, req.user._id, 'public live').then(continueUpload).catch(next);
+      return;
+    }
+
+    if (type === 'image' && req.body.folder === 'posts' && req.body.visibility === 'public') {
+      enforcePublicPostImage(req.file.path, req.user._id).then(continueUpload).catch(next);
+      return;
+    }
+
+    return continueUpload();
+
+    function continueUpload() {
+      const targetFolder = folder;
+
     if (!cloudinaryEnabled) {
-      const baseUrl = `${req.protocol}://${req.get('host')}/uploads/${folder}`;
+      const baseUrl = `${req.protocol}://${req.get('host')}/uploads/${targetFolder}`;
       return success(res, {
         url: `${baseUrl}/${req.file.filename}`,
         type,
@@ -62,7 +91,7 @@ exports.uploadMedia = (req, res, next) => {
     }
 
     const uploadStream = cloudinary.uploader.upload_stream(
-      { folder: `zemin/${folder}`, resource_type: 'auto' },
+      { folder: `zemin/${targetFolder}`, resource_type: 'auto' },
       (uploadError, result) => {
         if (uploadError) return next(uploadError);
         return success(res, {
@@ -74,6 +103,7 @@ exports.uploadMedia = (req, res, next) => {
       }
     );
     uploadStream.end(fs.readFileSync(req.file.path));
+    }
   });
 };
 
