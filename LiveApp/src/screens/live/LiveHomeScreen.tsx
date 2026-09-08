@@ -64,7 +64,7 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
           onGoLive={goLive}
           fs={fs}
         />
-
+{/* 
         <LiveRoomSection
           title="Top Live Now"
           countLabel={`${liveRooms.length} live`}
@@ -94,7 +94,7 @@ export const LiveHomeScreen = ({ navigation }: Props) => {
               />
             ))}
           </ScrollView>
-        </LiveRoomSection>
+        </LiveRoomSection> */}
 
         <LiveRoomSection
           title="VIP Rooms"
