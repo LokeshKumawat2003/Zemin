@@ -47,22 +47,28 @@ exports.start = async (req, res, next) => {
 
 exports.convertToVip = async (req, res, next) => {
   try {
-    const data = await liveService.convertRoomToVip(req.user._id, req.body.roomId, req.body.entryGiftId);
     const io = getIO();
+    const roomName = `live:${req.body.roomId}`;
+    const preservedViewerIds = io
+      ? [...io.sockets.sockets.values()]
+          .filter((socket) => socket.rooms.has(roomName) && socket.userId !== String(req.user._id))
+          .map((socket) => socket.userId)
+      : [];
+    const data = await liveService.convertRoomToVip(
+      req.user._id,
+      req.body.roomId,
+      req.body.entryGiftId,
+      preservedViewerIds,
+    );
     if (io) {
-      io.to(`live:${req.body.roomId}`).emit('live:privacy_changed', {
+      io.to(roomName).emit('live:privacy_changed', {
         roomId: req.body.roomId,
         roomType: 'vip',
         entryGiftId: data.entryGiftId,
         entryFeeCoins: data.entryFeeCoins,
         entryGift: data.entryGift,
+        preservedViewerIds,
       });
-      const roomName = `live:${req.body.roomId}`;
-      for (const socket of io.sockets.sockets.values()) {
-        if (socket.rooms.has(roomName) && socket.userId !== String(req.user._id)) {
-          socket.leave(roomName);
-        }
-      }
     }
     success(res, data, 'Live converted to private');
   } catch (err) {

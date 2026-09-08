@@ -100,6 +100,7 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
                   livekitEnabled: initialEnabled,
                   roomType: initialRoomType,
                   entryGift: initialEntryGift,
+                  hasPaidEntry: true,
                 },
               }
             : await liveApi.join(roomId);
@@ -238,6 +239,7 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
     const cleanup = socketManager.onLivePrivacyChanged((data) => {
       if (data.roomId !== roomId) return;
       setRoomType('vip');
+      if (data.preservedViewerIds?.includes(userId || '')) return;
       setPrivateLockVisible(true);
       setHasLiveAccess(false);
       setEntryGiftCost(data.entryFeeCoins ?? 0);
@@ -249,7 +251,7 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
     return () => {
       cleanup?.();
     };
-  }, [roomId]);
+  }, [roomId, userId]);
 
   const unlockPrivateLive = useCallback(async () => {
     if (unlockingPrivateLive) return;

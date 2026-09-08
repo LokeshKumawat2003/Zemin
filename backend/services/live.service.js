@@ -273,7 +273,7 @@ class LiveService {
     };
   }
 
-  async convertRoomToVip(userId, roomId, entryGiftId) {
+  async convertRoomToVip(userId, roomId, entryGiftId, preservedViewerIds = []) {
     const room = await LiveRoom.findOne({ _id: roomId, userId });
     if (!room) throw new AppError('NOT_FOUND', 404, 'Live room not found');
     if (room.status !== 'live') throw new AppError('LIVE_ROOM_NOT_ACTIVE', 400, 'Only an active live can become private');
@@ -290,6 +290,20 @@ class LiveService {
     room.maxViewers = 1000000;
     room.maxGuests = 1000000;
     room.enableGuest = true;
+    room.paidEntries = room.paidEntries || [];
+    const existingEntryUsers = new Set(
+      (room.paidEntries || []).map((entry) => String(entry.userId)),
+    );
+    for (const viewerId of preservedViewerIds) {
+      if (String(viewerId) === String(userId) || existingEntryUsers.has(String(viewerId))) continue;
+      room.paidEntries.push({
+        userId: viewerId,
+        paidAt: new Date(),
+        amount: 0,
+        giftId: gift.giftId,
+      });
+      existingEntryUsers.add(String(viewerId));
+    }
     await room.save();
 
     return {
