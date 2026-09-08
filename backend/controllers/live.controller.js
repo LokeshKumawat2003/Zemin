@@ -1,4 +1,5 @@
 const liveService = require('../services/live.service');
+const { getIO } = require('../sockets');
 const { success, paginated } = require('../utils/response.util');
 const { getPagination } = require('../utils/pagination.util');
 
@@ -47,6 +48,22 @@ exports.start = async (req, res, next) => {
 exports.convertToVip = async (req, res, next) => {
   try {
     const data = await liveService.convertRoomToVip(req.user._id, req.body.roomId, req.body.entryGiftId);
+    const io = getIO();
+    if (io) {
+      io.to(`live:${req.body.roomId}`).emit('live:privacy_changed', {
+        roomId: req.body.roomId,
+        roomType: 'vip',
+        entryGiftId: data.entryGiftId,
+        entryFeeCoins: data.entryFeeCoins,
+        entryGift: data.entryGift,
+      });
+      const roomName = `live:${req.body.roomId}`;
+      for (const socket of io.sockets.sockets.values()) {
+        if (socket.rooms.has(roomName) && socket.userId !== String(req.user._id)) {
+          socket.leave(roomName);
+        }
+      }
+    }
     success(res, data, 'Live converted to private');
   } catch (err) {
     next(err);

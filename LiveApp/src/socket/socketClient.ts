@@ -89,6 +89,13 @@ class SocketManager {
     return () => this.socket?.off('live:moderated', handler);
   }
 
+  onLivePrivacyChanged(
+    handler: (data: { roomId: string; roomType: 'vip'; entryGiftId?: string; entryFeeCoins?: number; entryGift?: { name?: string; emoji?: string } }) => void,
+  ) {
+    this.socket?.on('live:privacy_changed', handler);
+    return () => this.socket?.off('live:privacy_changed', handler);
+  }
+
   onLiveViewerCount(
     handler: (data: { roomId: string; count: number }) => void,
   ) {

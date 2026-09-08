@@ -29,9 +29,11 @@ export const useLiveSocket = (
   roomId: string,
   onChatMessage: (msg: { userId: string; userName?: string; text: string; sentAt: string; isFake?: boolean }) => void,
   onViewerCount?: (count: number) => void,
-  onGift?: (gift: LiveGiftPayload) => void
+  onGift?: (gift: LiveGiftPayload) => void,
+  enabled = true,
 ) => {
   useEffect(() => {
+    if (!enabled) return undefined;
     socketManager.connect();
     socketManager.joinLive(roomId);
 
@@ -57,7 +59,7 @@ export const useLiveSocket = (
       cleanupGift?.();
       socketManager.leaveLive(roomId);
     };
-  }, [roomId, onChatMessage, onViewerCount, onGift]);
+  }, [roomId, onChatMessage, onViewerCount, onGift, enabled]);
 };
 
 export const useChatSocket = (

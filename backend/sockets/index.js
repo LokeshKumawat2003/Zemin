@@ -50,10 +50,17 @@ const initSocket = (server) => {
       const liveRoom = await LiveRoom.findOne({
         _id: roomId,
         status: { $in: ['waiting', 'live'] },
-      }).select('userId removedUserIds');
+      }).select('userId removedUserIds roomType paidEntries');
       if (!liveRoom) return;
 
       const isHost = liveRoom.userId.toString() === socket.userId;
+      const hasPaidEntry = liveRoom.paidEntries?.some(
+        (entry) => entry.userId?.toString() === socket.userId,
+      );
+      if (!isHost && liveRoom.roomType === 'vip' && !hasPaidEntry) {
+        socket.emit('live:entry_required', { roomId });
+        return;
+      }
       const wasRemoved = liveRoom.removedUserIds.some((userId) => userId.toString() === socket.userId);
       const host = await User.findById(liveRoom.userId).select('blockedUsers');
       const isBlocked = host?.blockedUsers?.some((userId) => userId.toString() === socket.userId);

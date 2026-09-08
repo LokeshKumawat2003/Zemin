@@ -77,6 +77,11 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
   const [roomType, setRoomType] = useState<'public' | 'vip'>('public');
   const [entryGiftName, setEntryGiftName] = useState<string>();
   const [entryGiftEmoji, setEntryGiftEmoji] = useState<string>();
+  const [entryGiftCost, setEntryGiftCost] = useState(0);
+  const [hasLiveAccess, setHasLiveAccess] = useState(
+    initialRoomType !== 'vip' || Boolean(preJoined && initialToken),
+  );
+  const [privateLockVisible, setPrivateLockVisible] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   const chatListRef = useRef<any>(null);
@@ -117,6 +122,10 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
       setRoomType(joinRes.data?.roomType === 'vip' ? 'vip' : 'public');
       setEntryGiftName(joinRes.data?.entryGift?.name);
       setEntryGiftEmoji(joinRes.data?.entryGift?.emoji);
+      setEntryGiftCost(joinRes.data?.entryGift?.coinCost ?? joinRes.data?.entryFeeCoins ?? 0);
+      const joinedPrivateRoom = joinRes.data?.roomType === 'vip';
+      setHasLiveAccess(!joinedPrivateRoom || Boolean(joinRes.data?.hasPaidEntry));
+      setPrivateLockVisible(joinedPrivateRoom && !joinRes.data?.hasPaidEntry);
 
         setWebrtcToken(token);
         setLivekitUrl(url);
@@ -222,7 +231,43 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
     [userId],
   );
 
-  useLiveSocket(roomId, onChatMessage, setViewerCount, onLiveGift);
+  useLiveSocket(roomId, onChatMessage, setViewerCount, onLiveGift, hasLiveAccess);
+
+  useEffect(() => {
+    const cleanup = socketManager.onLivePrivacyChanged((data) => {
+      if (data.roomId !== roomId) return;
+      setRoomType('vip');
+      setPrivateLockVisible(true);
+      setHasLiveAccess(false);
+      setEntryGiftCost(data.entryFeeCoins ?? 0);
+      setEntryGiftName(data.entryGift?.name);
+      setEntryGiftEmoji(data.entryGift?.emoji);
+      setWebrtcToken(undefined);
+      setLivekitEnabled(false);
+    });
+    return () => {
+      cleanup?.();
+    };
+  }, [roomId]);
+
+  const unlockPrivateLive = useCallback(async () => {
+    try {
+      const joinRes = await liveApi.join(roomId);
+      const data = joinRes.data;
+      setWebrtcToken(data?.webrtcToken);
+      setLivekitUrl(data?.livekitUrl);
+      setLivekitEnabled(Boolean(data?.livekitEnabled));
+      setRoomType(data?.roomType === 'vip' ? 'vip' : 'public');
+      setEntryGiftName(data?.entryGift?.name);
+      setEntryGiftEmoji(data?.entryGift?.emoji);
+      setEntryGiftCost(data?.entryGift?.coinCost ?? data?.entryFeeCoins ?? 0);
+      setHasLiveAccess(true);
+      setPrivateLockVisible(false);
+      setStreamConnecting(true);
+    } catch (e: any) {
+      Alert.alert('Cannot join', e?.error?.message || 'Send the entry gift to join this private live.');
+    }
+  }, [roomId]);
 
   useEffect(() => {
     const cleanup = socketManager.onLiveModerated((data) => {
@@ -315,6 +360,9 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
     roomType,
     entryGiftName,
     entryGiftEmoji,
+    entryGiftCost,
+    privateLockVisible,
+    unlockPrivateLive,
     keyboardVisible,
     chatListRef,
     setChatText,

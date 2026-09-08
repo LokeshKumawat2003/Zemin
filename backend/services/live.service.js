@@ -298,6 +298,12 @@ class LiveService {
       roomType: room.roomType,
       entryGiftId: room.entryGiftId,
       entryFeeCoins: room.entryFeeCoins,
+      entryGift: {
+        giftId: gift.giftId,
+        name: gift.name,
+        emoji: gift.emoji,
+        coinCost: gift.coinCost,
+      },
       title: room.title,
     };
   }

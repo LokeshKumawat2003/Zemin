@@ -50,6 +50,9 @@ export const LiveViewerScreen = (props: Props) => {
     roomType,
     entryGiftName,
     entryGiftEmoji,
+    entryGiftCost,
+    privateLockVisible,
+    unlockPrivateLive,
     keyboardVisible,
     chatListRef,
     setChatText,
@@ -102,6 +105,18 @@ export const LiveViewerScreen = (props: Props) => {
           onStreamError={handleStreamError}
         />
         <View style={styles.backdrop} />
+        {privateLockVisible ? (
+          <View style={styles.privateLock}>
+            <Text style={styles.privateLockIcon}>🔒</Text>
+            <Text style={styles.privateLockTitle}>Private live</Text>
+            <Text style={styles.privateLockText}>
+              Send {entryGiftEmoji || '🎁'} {entryGiftName || 'the entry gift'} ({entryGiftCost} coins) to unlock this live.
+            </Text>
+            <Pressable style={styles.privateJoinButton} onPress={unlockPrivateLive}>
+              <Text style={styles.privateJoinButtonText}>Send gift & join</Text>
+            </Pressable>
+          </View>
+        ) : null}
       </View>
 
       {giftAnimations.map((anim) => (
@@ -115,7 +130,7 @@ export const LiveViewerScreen = (props: Props) => {
 
       <Animated.View
         style={[StyleSheet.absoluteFill, { opacity: actionsOpacity }]}
-        pointerEvents={showActions ? 'auto' : 'none'}
+        pointerEvents={showActions && !privateLockVisible ? 'auto' : 'none'}
         {...swipeResponder.panHandlers}
       >
         <View style={styles.topBar}>
