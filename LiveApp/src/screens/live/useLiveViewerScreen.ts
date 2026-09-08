@@ -82,6 +82,7 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
     initialRoomType !== 'vip' || Boolean(preJoined && initialToken),
   );
   const [privateLockVisible, setPrivateLockVisible] = useState(false);
+  const [unlockingPrivateLive, setUnlockingPrivateLive] = useState(false);
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   const chatListRef = useRef<any>(null);
@@ -251,6 +252,8 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
   }, [roomId]);
 
   const unlockPrivateLive = useCallback(async () => {
+    if (unlockingPrivateLive) return;
+    setUnlockingPrivateLive(true);
     try {
       const joinRes = await liveApi.join(roomId);
       const data = joinRes.data;
@@ -266,8 +269,10 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
       setStreamConnecting(true);
     } catch (e: any) {
       Alert.alert('Cannot join', e?.error?.message || 'Send the entry gift to join this private live.');
+    } finally {
+      setUnlockingPrivateLive(false);
     }
-  }, [roomId]);
+  }, [roomId, unlockingPrivateLive]);
 
   useEffect(() => {
     const cleanup = socketManager.onLiveModerated((data) => {
@@ -362,6 +367,7 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
     entryGiftEmoji,
     entryGiftCost,
     privateLockVisible,
+    unlockingPrivateLive,
     unlockPrivateLive,
     keyboardVisible,
     chatListRef,

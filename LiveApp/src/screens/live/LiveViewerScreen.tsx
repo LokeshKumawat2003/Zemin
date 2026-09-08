@@ -52,6 +52,7 @@ export const LiveViewerScreen = (props: Props) => {
     entryGiftEmoji,
     entryGiftCost,
     privateLockVisible,
+    unlockingPrivateLive,
     unlockPrivateLive,
     keyboardVisible,
     chatListRef,
@@ -112,8 +113,8 @@ export const LiveViewerScreen = (props: Props) => {
             <Text style={styles.privateLockText}>
               Send {entryGiftEmoji || '🎁'} {entryGiftName || 'the entry gift'} ({entryGiftCost} coins) to unlock this live.
             </Text>
-            <Pressable style={styles.privateJoinButton} onPress={unlockPrivateLive}>
-              <Text style={styles.privateJoinButtonText}>Send gift & join</Text>
+            <Pressable style={[styles.privateJoinButton, unlockingPrivateLive && styles.privateJoinButtonDisabled]} onPress={unlockPrivateLive} disabled={unlockingPrivateLive}>
+              <Text style={styles.privateJoinButtonText}>{unlockingPrivateLive ? 'Joining...' : 'Send gift & join'}</Text>
             </Pressable>
           </View>
         ) : null}

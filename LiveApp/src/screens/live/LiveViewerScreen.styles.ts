@@ -19,6 +19,7 @@ export const styles = StyleSheet.create({
   privateLockTitle: { color: '#fff', fontSize: 24, fontWeight: '800' },
   privateLockText: { color: 'rgba(255,255,255,0.78)', fontSize: 14, lineHeight: 21, textAlign: 'center', marginTop: spacing.sm, maxWidth: 320 },
   privateJoinButton: { marginTop: spacing.lg, backgroundColor: colors.primary || '#ff2d55', borderRadius: 22, paddingVertical: 13, paddingHorizontal: 24 },
+  privateJoinButtonDisabled: { opacity: 0.65 },
   privateJoinButtonText: { color: '#fff', fontSize: 15, fontWeight: '800' },
   topBar: {
     position: 'absolute',
