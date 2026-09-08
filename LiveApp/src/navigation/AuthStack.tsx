@@ -4,6 +4,7 @@ import { LoginScreen } from '../screens/auth/LoginScreen';
 import { SignupScreen } from '../screens/auth/SignupScreen';
 import { OTPScreen } from '../screens/auth/OTPScreen';
 import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
+import { LegalDocumentScreen } from '../screens/auth/LegalDocumentScreen';
 import { AuthStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -12,6 +13,7 @@ export const AuthStack = () => (
   <Stack.Navigator screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0A0A0F' } }}>
     <Stack.Screen name="Login" component={LoginScreen} />
     <Stack.Screen name="Signup" component={SignupScreen} />
+    <Stack.Screen name="LegalDocument" component={LegalDocumentScreen} />
     <Stack.Screen name="OTP" component={OTPScreen} />
     <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
   </Stack.Navigator>

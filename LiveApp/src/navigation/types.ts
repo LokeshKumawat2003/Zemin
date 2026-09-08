@@ -1,6 +1,7 @@
 export type AuthStackParamList = {
   Login: undefined;
   Signup: undefined;
+  LegalDocument: { type: 'privacy' | 'terms' };
   OTP: { userId: string; devOtp?: string; avatarUri?: string };
   ForgotPassword: undefined;
 };

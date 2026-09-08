@@ -80,6 +80,17 @@ const initializeAuthModels = (connection) => {
       deletedAt: Date,
       lastLoginAt: Date,
       lastActiveAt: Date,
+      legalConsent: {
+        termsAccepted: Boolean,
+        privacyPolicyAccepted: Boolean,
+        termsVersion: String,
+        privacyPolicyVersion: String,
+        acceptedAt: Date,
+        ipAddress: String,
+        userAgent: String,
+        platform: String,
+        appVersion: String,
+      },
     },
     { timestamps: true }
   );

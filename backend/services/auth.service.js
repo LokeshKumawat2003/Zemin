@@ -7,6 +7,7 @@ const Creator = require('../models/Creator.model');
 const AppError = require('../utils/AppError');
 const { hashPassword, comparePassword } = require('../utils/bcrypt.util');
 const { signAccessToken, signRefreshToken, verifyRefreshToken } = require('../utils/jwt.util');
+const { LEGAL_POLICY_VERSIONS } = require('../config/legal');
 
 const LOCK_TIME_MS = 15 * 60 * 1000;
 const MAX_LOGIN_ATTEMPTS = 5;
@@ -41,7 +42,10 @@ class AuthService {
     return { available: !exists };
   }
 
-  async register({ username, email, phone, password, registrationMethod }) {
+  async register(
+    { username, email, phone, password, registrationMethod, termsAccepted, privacyPolicyAccepted },
+    consentMetadata = {},
+  ) {
     const { User, OtpCode } = getAuthModels();
     const normalizedUsername = username.toLowerCase();
 
@@ -63,6 +67,14 @@ class AuthService {
       displayName: normalizedUsername,
       isVerified: false,
       isCreator: true,
+      legalConsent: {
+        ...consentMetadata,
+        termsAccepted,
+        privacyPolicyAccepted,
+        termsVersion: LEGAL_POLICY_VERSIONS.termsOfService,
+        privacyPolicyVersion: LEGAL_POLICY_VERSIONS.privacyPolicy,
+        acceptedAt: new Date(),
+      },
     });
 
     await Wallet.create({ userId: user._id });

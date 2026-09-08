@@ -20,6 +20,8 @@ const registerSchema = Joi.object({
     .required()
     .messages({ 'string.pattern.base': 'Password must include upper, lower, and number' }),
   registrationMethod: Joi.string().valid('email', 'phone').default('email'),
+  termsAccepted: Joi.valid(true).required(),
+  privacyPolicyAccepted: Joi.valid(true).required(),
 });
 
 const loginSchema = Joi.object({

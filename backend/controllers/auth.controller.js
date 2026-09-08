@@ -3,7 +3,12 @@ const { success } = require('../utils/response.util');
 
 exports.register = async (req, res, next) => {
   try {
-    const data = await authService.register(req.body);
+    const data = await authService.register(req.body, {
+      ipAddress: req.ip,
+      userAgent: req.get('user-agent'),
+      platform: req.get('x-client-platform'),
+      appVersion: req.get('x-app-version'),
+    });
     success(res, data, 'Registration successful. OTP sent.', 201);
   } catch (err) {
     next(err);

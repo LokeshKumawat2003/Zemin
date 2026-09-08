@@ -31,6 +31,8 @@ export const authApi = {
     email: string;
     password: string;
     registrationMethod: 'email';
+    termsAccepted: true;
+    privacyPolicyAccepted: true;
   }) => apiClient.post('/auth/register', data),
 
   verifyOtp: (data: { userId: string; otp: string; purpose: string }) =>

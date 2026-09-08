@@ -9,6 +9,7 @@ import {
   Alert,
   Image,
   TouchableOpacity,
+  Pressable,
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -28,6 +29,7 @@ export const SignupScreen = ({ navigation }: Props) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [avatarUri, setAvatarUri] = useState<string>();
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const chooseAvatar = async () => {
@@ -37,7 +39,7 @@ export const SignupScreen = ({ navigation }: Props) => {
   };
 
   const onSignup = async () => {
-    if (!username || !email || !password || !avatarUri) {
+    if (!username || !email || !password || !avatarUri || !legalAccepted) {
       Alert.alert('Error', 'Please fill in all fields');
       return;
     }
@@ -48,7 +50,13 @@ export const SignupScreen = ({ navigation }: Props) => {
     }
     setLoading(true);
     try {
-      const result = await dispatch(registerUser({ username, email, password })).unwrap();
+      const result = await dispatch(registerUser({
+        username,
+        email,
+        password,
+        termsAccepted: true,
+        privacyPolicyAccepted: true,
+      })).unwrap();
       navigation.navigate('OTP', {
         userId: result.userId,
         devOtp: result.devOtp,
@@ -77,6 +85,25 @@ export const SignupScreen = ({ navigation }: Props) => {
         <Text style={styles.hint}>
           At least 8 characters with uppercase, lowercase, and a number
         </Text>
+        <Pressable
+          style={styles.legalRow}
+          onPress={() => setLegalAccepted(value => !value)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: legalAccepted }}
+        >
+          <View style={[styles.checkbox, legalAccepted && styles.checkboxChecked]}>
+            {legalAccepted ? <Text style={styles.checkmark}>✓</Text> : null}
+          </View>
+          <Text style={styles.legalText}>
+            I agree to the Zemin{' '}
+            <Text style={styles.legalLink} onPress={() => navigation.navigate('LegalDocument', { type: 'terms' })}>
+              Terms of Service
+            </Text>{' '}and{' '}
+            <Text style={styles.legalLink} onPress={() => navigation.navigate('LegalDocument', { type: 'privacy' })}>
+              Privacy Policy
+            </Text>.
+          </Text>
+        </Pressable>
         <Button title="Sign Up" onPress={onSignup} loading={loading} />
         <Button title="Back to Login" variant="ghost" onPress={() => navigation.goBack()} />
       </ScrollView>
@@ -96,4 +123,10 @@ const styles = StyleSheet.create({
   avatarPicker: { alignSelf: 'center', width: 104, height: 104, borderRadius: 52, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg, overflow: 'hidden' },
   avatar: { width: '100%', height: '100%' },
   avatarText: { ...typography.caption, color: colors.primary },
+  legalRow: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: spacing.lg },
+  checkbox: { width: 22, height: 22, borderRadius: 4, borderWidth: 1, borderColor: colors.border, marginRight: spacing.sm, alignItems: 'center', justifyContent: 'center' },
+  checkboxChecked: { backgroundColor: colors.primary, borderColor: colors.primary },
+  checkmark: { color: colors.textPrimary, fontSize: 16, fontWeight: '700' },
+  legalText: { ...typography.bodySmall, color: colors.textSecondary, flex: 1 },
+  legalLink: { color: colors.primary, textDecorationLine: 'underline' },
 });
