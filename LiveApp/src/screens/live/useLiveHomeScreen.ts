@@ -305,6 +305,8 @@ export const useLiveHomeScreen = (navigation: Navigation) => {
         livekitUrl: joinData?.livekitUrl,
         livekitEnabled: joinData?.livekitEnabled,
         viewerCount: joinData?.viewerCount,
+        roomType: joinData?.roomType,
+        entryGift: joinData?.entryGift,
       });
     } catch (e: any) {
       Alert.alert('Cannot join', e?.error?.message || 'Gift payment failed');
@@ -321,9 +323,10 @@ export const useLiveHomeScreen = (navigation: Navigation) => {
         room.userId?.id ||
         room.userId?._id ||
         room.userId;
-      return Boolean(
+      const isOwner = Boolean(
         user?.id && ownerId && String(ownerId) === String(user.id),
       );
+      return room.status === 'live' || isOwner;
     });
   }, [user?.id, vipRooms]);
 

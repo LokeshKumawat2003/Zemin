@@ -273,6 +273,35 @@ class LiveService {
     };
   }
 
+  async convertRoomToVip(userId, roomId, entryGiftId) {
+    const room = await LiveRoom.findOne({ _id: roomId, userId });
+    if (!room) throw new AppError('NOT_FOUND', 404, 'Live room not found');
+    if (room.status !== 'live') throw new AppError('LIVE_ROOM_NOT_ACTIVE', 400, 'Only an active live can become private');
+    if (room.roomType === 'vip') throw new AppError('ALREADY_PRIVATE', 400, 'This live is already private');
+
+    const { gift } = await this.resolveEntryGift(entryGiftId);
+    if (!gift) throw new AppError('GIFT_REQUIRED', 400, 'Choose an entry gift for the private live');
+
+    room.roomType = 'vip';
+    room.visibility = 'subscribers';
+    room.category = 'vip';
+    room.entryGiftId = gift.giftId;
+    room.entryFeeCoins = gift.coinCost;
+    room.maxViewers = 1000000;
+    room.maxGuests = 1000000;
+    room.enableGuest = true;
+    await room.save();
+
+    return {
+      roomId: room._id.toString(),
+      status: room.status,
+      roomType: room.roomType,
+      entryGiftId: room.entryGiftId,
+      entryFeeCoins: room.entryFeeCoins,
+      title: room.title,
+    };
+  }
+
   hasPaidEntry(room, userId) {
     return (room.paidEntries || []).some((entry) => String(entry.userId) === String(userId));
   }

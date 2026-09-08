@@ -48,6 +48,8 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
     livekitUrl: initialUrl,
     livekitEnabled: initialEnabled,
     viewerCount: initialViewerCount,
+    roomType: initialRoomType,
+    entryGift: initialEntryGift,
   } = route.params;
 
   const { width } = useWindowDimensions();
@@ -72,6 +74,9 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
   const [livekitEnabled, setLivekitEnabled] = useState(false);
   const [playbackType, setPlaybackType] = useState<'livekit' | 'video'>('livekit');
   const [playbackUrl, setPlaybackUrl] = useState<string>();
+  const [roomType, setRoomType] = useState<'public' | 'vip'>('public');
+  const [entryGiftName, setEntryGiftName] = useState<string>();
+  const [entryGiftEmoji, setEntryGiftEmoji] = useState<string>();
   const [keyboardVisible, setKeyboardVisible] = useState(false);
 
   const chatListRef = useRef<any>(null);
@@ -87,6 +92,8 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
                   webrtcToken: initialToken,
                   livekitUrl: initialUrl,
                   livekitEnabled: initialEnabled,
+                  roomType: initialRoomType,
+                  entryGift: initialEntryGift,
                 },
               }
             : await liveApi.join(roomId);
@@ -107,6 +114,9 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
         const enabled = Boolean(joinRes.data?.livekitEnabled);
       const nextPlaybackType = joinRes.data?.playbackType === 'video' ? 'video' : 'livekit';
       const nextPlaybackUrl = joinRes.data?.playbackUrl;
+      setRoomType(joinRes.data?.roomType === 'vip' ? 'vip' : 'public');
+      setEntryGiftName(joinRes.data?.entryGift?.name);
+      setEntryGiftEmoji(joinRes.data?.entryGift?.emoji);
 
         setWebrtcToken(token);
         setLivekitUrl(url);
@@ -302,6 +312,9 @@ export const useLiveViewerScreen = ({ route, navigation }: Props) => {
     livekitEnabled,
     playbackType,
     playbackUrl,
+    roomType,
+    entryGiftName,
+    entryGiftEmoji,
     keyboardVisible,
     chatListRef,
     setChatText,

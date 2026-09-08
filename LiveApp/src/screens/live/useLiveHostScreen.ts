@@ -10,6 +10,8 @@ import {
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { liveApi, userApi } from '../../api';
 import { getGiftEmoji } from '../../components/live/LiveGiftEffects';
+import { GiftEntryPicker } from '../../components/live/GiftEntryPicker';
+import { GiftItem } from '../../components/live/LiveGiftEffects';
 import { useAppSelector } from '../../redux/hooks';
 import { LiveStackParamList } from '../../navigation/types';
 import { useLiveSocket, LiveGiftPayload } from '../../hooks/useSocket';
@@ -76,6 +78,9 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraFront, setIsCameraFront] = useState(true);
   const [openCommentMenuId, setOpenCommentMenuId] = useState<string | null>(null);
+  const [entryGift, setEntryGift] = useState<GiftItem | null>(null);
+  const [convertingPrivate, setConvertingPrivate] = useState(false);
+  const [showPrivatePicker, setShowPrivatePicker] = useState(false);
 
   const listRef = useRef<any>(null);
   const autoEndTriggeredRef = useRef(false);
@@ -122,6 +127,23 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
       { text: 'End Stream', style: 'destructive', onPress: () => { endStream(); } },
     ]);
   }, [endStream]);
+
+  const convertToPrivate = useCallback(async () => {
+    if (!entryGift || convertingPrivate) {
+      setShowPrivatePicker(true);
+      return;
+    }
+    setConvertingPrivate(true);
+    try {
+      await liveApi.convertToVip(roomId, entryGift.giftId);
+      setShowPrivatePicker(false);
+      Alert.alert('Private live enabled', `Viewers must send ${entryGift.name} to join from now on.`);
+    } catch (e: any) {
+      Alert.alert('Could not convert live', e?.error?.message || 'Please choose an entry gift and try again.');
+    } finally {
+      setConvertingPrivate(false);
+    }
+  }, [convertingPrivate, entryGift, roomId]);
 
   useEffect(() => {
     const backAction = () => {
@@ -296,5 +318,11 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
     openCommentMenuId,
     setOpenCommentMenuId,
     moderateUser,
+    entryGift,
+    setEntryGift,
+    showPrivatePicker,
+    setShowPrivatePicker,
+    convertingPrivate,
+    convertToPrivate,
   };
 };

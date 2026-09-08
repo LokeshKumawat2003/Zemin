@@ -121,6 +121,7 @@ export const liveApi = {
     category?: string;
   }) => apiClient.post('/live/create-vip', data),
   start: (roomId: string) => apiClient.post('/live/start', { roomId }),
+  convertToVip: (roomId: string, entryGiftId: string) => apiClient.post('/live/convert-to-vip', { roomId, entryGiftId }),
   join: (roomId: string) => apiClient.post('/live/join', { roomId }),
   leave: (roomId: string) => apiClient.post('/live/leave', { roomId }),
   end: (roomId: string) => apiClient.post('/live/end', { roomId }),

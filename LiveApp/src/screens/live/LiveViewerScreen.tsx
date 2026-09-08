@@ -47,6 +47,9 @@ export const LiveViewerScreen = (props: Props) => {
     livekitEnabled,
     playbackType,
     playbackUrl,
+    roomType,
+    entryGiftName,
+    entryGiftEmoji,
     keyboardVisible,
     chatListRef,
     setChatText,
@@ -127,6 +130,13 @@ export const LiveViewerScreen = (props: Props) => {
               <Text style={styles.hostStatus}>Live now • {formatCount(viewerCount)} watching</Text>
             </View>
           </View>
+
+          {roomType === 'vip' && (
+            <View style={{ position: 'absolute', top: 48, left: 0, backgroundColor: 'rgba(15,23,42,0.84)', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 5, flexDirection: 'row', alignItems: 'center' }}>
+              <Text style={{ color: '#ffd166', fontSize: 11, fontWeight: '700' }}>🔒 Private live</Text>
+              {entryGiftName ? <Text style={{ color: '#fff', fontSize: 11, marginLeft: 6 }}>{entryGiftEmoji || '🎁'} {entryGiftName} to join</Text> : null}
+            </View>
+          )}
 
           <View style={styles.headerActions}>
             <View style={styles.viewerChip}>

@@ -18,6 +18,7 @@ import { CameraType } from 'react-native-camera-kit';
 import { LiveCameraPreview } from '../../components/live/LiveCameraPreview';
 import { LiveKitHostVideo } from '../../components/live/LiveKitHostVideo';
 import { GiftBurstAnimation } from '../../components/live/LiveGiftEffects';
+import { GiftEntryPicker } from '../../components/live/GiftEntryPicker';
 import { FloatingHeart } from '../../components/live/FloatingHeart';
 import { LiveStackParamList } from '../../navigation/types';
 import { styles } from './LiveHostScreen.styles';
@@ -63,6 +64,12 @@ export const LiveHostScreen = (props: Props) => {
     openCommentMenuId,
     setOpenCommentMenuId,
     moderateUser,
+    entryGift,
+    setEntryGift,
+    showPrivatePicker,
+    setShowPrivatePicker,
+    convertingPrivate,
+    convertToPrivate,
   } = useLiveHostScreen(props);
 
   const setControlsVisible = (visible: boolean) => {
@@ -246,6 +253,14 @@ export const LiveHostScreen = (props: Props) => {
             <KeyboardStickyView offset={{ opened: 0, closed: 0 }} style={styles.actionDrawer}>
               <View style={styles.drawerHandle} />
               <View style={styles.drawerOptions}>
+                {!showPrivatePicker ? (
+                  <Pressable style={styles.drawerOption} onPress={() => setShowPrivatePicker(true)}>
+                    <View style={styles.drawerIcon}>
+                      <Icon name="lock" size={23} color="#fff" />
+                    </View>
+                    <Text style={styles.drawerLabel}>Make private</Text>
+                  </Pressable>
+                ) : null}
                 <Pressable style={styles.drawerOption} onPress={toggleMute}>
                   <View style={styles.drawerIcon}>
                     <Icon name={isMuted ? 'mic-off' : 'mic'} size={23} color="#fff" />
@@ -259,6 +274,24 @@ export const LiveHostScreen = (props: Props) => {
                   <Text style={styles.drawerLabel}>{isCameraFront ? 'Back camera' : 'Front camera'}</Text>
                 </Pressable>
               </View>
+              {showPrivatePicker && (
+                <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+                  <GiftEntryPicker
+                    selectedGiftId={entryGift?.giftId}
+                    onSelect={setEntryGift}
+                    label="Entry gift"
+                    hint="Current viewers stay in this live. New viewers must send this gift to join."
+                    selectedLabel="Selected"
+                  />
+                  <Pressable
+                    onPress={convertToPrivate}
+                    disabled={!entryGift || convertingPrivate}
+                    style={{ marginTop: 10, backgroundColor: entryGift ? '#ff2f6e' : '#555', paddingVertical: 11, borderRadius: 10, alignItems: 'center' }}
+                  >
+                    <Text style={{ color: '#fff', fontWeight: '700' }}>{convertingPrivate ? 'Converting...' : 'Convert this live'}</Text>
+                  </Pressable>
+                </View>
+              )}
             </KeyboardStickyView>
           </>
         )}

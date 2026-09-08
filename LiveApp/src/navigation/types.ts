@@ -49,6 +49,8 @@ export type LiveStackParamList = {
     livekitUrl?: string;
     livekitEnabled?: boolean;
     viewerCount?: number;
+    roomType?: 'public' | 'vip';
+    entryGift?: { name?: string; emoji?: string; giftId?: string; coinCost?: number } | null;
     preJoined?: boolean;
   };
 };

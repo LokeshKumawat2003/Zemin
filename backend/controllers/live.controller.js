@@ -44,6 +44,15 @@ exports.start = async (req, res, next) => {
   }
 };
 
+exports.convertToVip = async (req, res, next) => {
+  try {
+    const data = await liveService.convertRoomToVip(req.user._id, req.body.roomId, req.body.entryGiftId);
+    success(res, data, 'Live converted to private');
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.join = async (req, res, next) => {
   try {
     const data = await liveService.joinRoom(req.user._id, req.body.roomId);

@@ -10,6 +10,7 @@ router.get('/:roomId', liveController.getRoom);
 router.post('/create', authenticate, liveController.create);
 router.post('/create-vip', authenticate, liveController.createVip);
 router.post('/start', authenticate, liveController.start);
+router.post('/convert-to-vip', authenticate, liveController.convertToVip);
 router.post('/join', authenticate, liveController.join);
 router.post('/leave', authenticate, liveController.leave);
 router.post('/end', authenticate, liveController.end);
