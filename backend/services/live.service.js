@@ -675,6 +675,34 @@ class LiveService {
       total,
     };
   }
+
+  async moderateLiveFrame(userId, roomId, imagePath) {
+    const fs = require('fs');
+    const { enforcePublicImage } = require('./imageModeration.service');
+
+    const room = await LiveRoom.findOne({ _id: roomId, userId });
+    if (!room) throw new AppError('NOT_FOUND', 404, 'Live room not found');
+    if (room.roomType === 'vip') {
+      return { isNsfw: false, skipped: true, reason: 'vip_room' };
+    }
+    if (room.status !== 'live') {
+      throw new AppError('LIVE_ROOM_NOT_ACTIVE', 400, 'Room is not live');
+    }
+
+    const stats = fs.existsSync(imagePath) ? fs.statSync(imagePath) : null;
+    if (!stats || stats.size < 2048) {
+      throw new AppError('FRAME_EMPTY', 422, 'Live frame capture was empty. Rebuild the app and try again.');
+    }
+
+    try {
+      const result = await enforcePublicImage(imagePath, userId, 'public live frame', roomId);
+      return { isNsfw: false, ...result };
+    } finally {
+      if (imagePath && fs.existsSync(imagePath)) {
+        await fs.promises.unlink(imagePath).catch(() => {});
+      }
+    }
+  }
 }
 
 module.exports = new LiveService();

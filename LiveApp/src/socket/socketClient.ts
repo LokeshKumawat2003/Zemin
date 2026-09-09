@@ -121,6 +121,13 @@ class SocketManager {
     return () => this.socket?.off('live:gift', handler);
   }
 
+  onLiveEnded(
+    handler: (data: { roomId: string; reason?: string }) => void,
+  ) {
+    this.socket?.on('live:ended', handler);
+    return () => this.socket?.off('live:ended', handler);
+  }
+
   getSocket() {
     return this.socket;
   }

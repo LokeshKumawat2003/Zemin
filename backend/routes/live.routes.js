@@ -14,5 +14,6 @@ router.post('/convert-to-vip', authenticate, liveController.convertToVip);
 router.post('/join', authenticate, liveController.join);
 router.post('/leave', authenticate, liveController.leave);
 router.post('/end', authenticate, liveController.end);
+router.post('/:roomId/moderate-frame', authenticate, liveController.moderateFrame);
 
 module.exports = router;

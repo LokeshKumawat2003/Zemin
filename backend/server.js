@@ -5,6 +5,7 @@ const { port } = require('./config/env');
 const { initSocket } = require('./sockets');
 const livekitService = require('./services/livekit.service');
 const fakeLiveService = require('./services/fakeLive.service');
+const { warmupModerationWorker } = require('./services/imageModeration.service');
 
 const start = async () => {
   // Connect to both databases
@@ -25,6 +26,8 @@ const start = async () => {
   } else {
     console.warn('[LiveKit] Not configured — live streams will use local camera preview only');
   }
+
+  await warmupModerationWorker();
 
   const server = http.createServer(app);
   initSocket(server);

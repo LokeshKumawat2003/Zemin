@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { forwardRef, useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,7 @@ import {
   ActivityIndicator,
   TouchableOpacity,
 } from 'react-native';
-import { Camera, CameraType } from 'react-native-camera-kit';
+import { Camera, CameraType, type CameraApi } from 'react-native-camera-kit';
 import { useLivePermissions } from '../../permissions/PermissionsContext';
 import { colors, typography, spacing } from '../../theme';
 
@@ -18,13 +18,13 @@ type Props = {
   showFlip?: boolean;
 };
 
-export const LiveCameraPreview = ({
+export const LiveCameraPreview = forwardRef<CameraApi, Props>(({
   style,
   defaultCamera = CameraType.Front,
   cameraType: controlledCameraType,
   onCameraTypeChange,
   showFlip = true,
-}: Props) => {
+}, ref) => {
   const { ensureAll, isGranted } = useLivePermissions(['camera', 'microphone']);
   const [ready, setReady] = useState(false);
   const [denied, setDenied] = useState(false);
@@ -86,6 +86,7 @@ export const LiveCameraPreview = ({
   return (
     <View style={[styles.container, style]}>
       <Camera
+        ref={ref}
         key={resolvedCameraType}
         style={styles.camera}
         cameraType={resolvedCameraType}
@@ -99,7 +100,9 @@ export const LiveCameraPreview = ({
       )}
     </View>
   );
-};
+});
+
+LiveCameraPreview.displayName = 'LiveCameraPreview';
 
 const styles = StyleSheet.create({
   container: {

@@ -35,6 +35,9 @@ export const LiveHostScreen = (props: Props) => {
     webrtcToken,
     livekitUrl,
     livekitEnabled,
+    videoCaptureRef,
+    fallbackCameraRef,
+    handleLocalVideoTrackReady,
     isCompact,
     chatMaxHeight,
     hostAvatarUri,
@@ -95,17 +98,24 @@ export const LiveHostScreen = (props: Props) => {
     <View style={styles.container}>
       <StatusBar barStyle="light-content" />
 
-      <View style={StyleSheet.absoluteFill} {...swipeResponder.panHandlers}>
+      <View
+        ref={videoCaptureRef}
+        style={StyleSheet.absoluteFill}
+        collapsable={false}
+        {...swipeResponder.panHandlers}
+      >
         <LiveKitHostVideo
           livekitUrl={livekitUrl}
           webrtcToken={webrtcToken}
           livekitEnabled={livekitEnabled}
           isMuted={isMuted}
           showFlip={false}
+          onLocalVideoTrackReady={handleLocalVideoTrackReady}
           cameraType={isCameraFront ? CameraType.Front : CameraType.Back}
           onCameraTypeChange={(type) => setIsCameraFront(type === CameraType.Front)}
           fallback={
             <LiveCameraPreview
+              ref={fallbackCameraRef}
               showFlip
               cameraType={isCameraFront ? CameraType.Front : CameraType.Back}
               onCameraTypeChange={(type) => setIsCameraFront(type === CameraType.Front)}

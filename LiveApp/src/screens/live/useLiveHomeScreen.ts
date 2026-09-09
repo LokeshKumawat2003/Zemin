@@ -94,10 +94,12 @@ export const useLiveHomeScreen = (navigation: Navigation) => {
       livekitUrl?: string,
       livekitRoom?: string,
       livekitEnabled?: boolean,
+      roomType: 'public' | 'vip' = 'public',
     ) => {
       navigation.navigate('LiveHost', {
         roomId,
         title: streamTitle,
+        roomType,
         webrtcToken,
         livekitUrl,
         livekitRoom,
@@ -165,6 +167,7 @@ export const useLiveHomeScreen = (navigation: Navigation) => {
             livekitUrl,
             livekitRoom,
             livekitEnabled,
+            'vip',
           );
         } else {
           Alert.alert(
@@ -189,6 +192,7 @@ export const useLiveHomeScreen = (navigation: Navigation) => {
           livekitUrl,
           livekitRoom,
           livekitEnabled,
+          'public',
         );
       }
 
@@ -251,6 +255,7 @@ export const useLiveHomeScreen = (navigation: Navigation) => {
           livekitUrl,
           livekitRoom,
           livekitEnabled,
+          'vip',
         );
         load();
       } catch (e: any) {

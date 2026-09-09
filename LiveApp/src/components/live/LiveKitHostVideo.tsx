@@ -9,8 +9,14 @@ import {
   useLocalParticipant,
   useTracks,
 } from '@livekit/react-native';
-import { Track } from 'livekit-client';
+import { LocalVideoTrack, Track } from 'livekit-client';
 import { isLiveKitConfigured, getLiveKitFacingMode, switchHostCamera } from '../../utils/livekit';
+import { attachNativeModerationSampler } from '../../utils/liveFrameCapture';
+
+type MediaStreamTrackLike = {
+  id?: string;
+  _setVideoEffect?: (name: string) => void;
+};
 
 type Props = {
   livekitUrl?: string;
@@ -21,6 +27,7 @@ type Props = {
   onCameraTypeChange?: (cameraType: typeof CameraType.Front | typeof CameraType.Back) => void;
   showFlip?: boolean;
   isMuted?: boolean;
+  onLocalVideoTrackReady?: (track: MediaStreamTrackLike | null) => void;
 };
 
 function HostMicControl({ isMuted }: { isMuted: boolean }) {
@@ -41,40 +48,99 @@ function HostMicControl({ isMuted }: { isMuted: boolean }) {
 
 function HostCameraTrack({
   cameraType,
+  onLocalVideoTrackReady,
 }: {
   cameraType?: typeof CameraType.Front | typeof CameraType.Back;
+  onLocalVideoTrackReady?: (track: MediaStreamTrackLike | null) => void;
 }) {
   const { localParticipant } = useLocalParticipant();
   const lastAppliedCameraTypeRef = useRef<typeof CameraType.Front | typeof CameraType.Back | undefined>(
-    undefined
+    undefined,
   );
+  const switchingRef = useRef(false);
+  const onTrackReadyRef = useRef(onLocalVideoTrackReady);
   const [videoRenderKey, setVideoRenderKey] = useState(0);
   const activeCameraType = cameraType ?? CameraType.Front;
 
   const tracks = useTracks([Track.Source.Camera], { onlySubscribed: false });
   const localTrack = tracks.find(
-    (track) => isTrackReference(track) && track.participant.isLocal
+    (track) => isTrackReference(track) && track.participant.isLocal,
   );
 
   useEffect(() => {
-    if (!localParticipant) {
+    onTrackReadyRef.current = onLocalVideoTrackReady;
+  }, [onLocalVideoTrackReady]);
+
+  const notifyTrackReady = (participant = localParticipant) => {
+    if (!participant) {
+      onTrackReadyRef.current?.(null);
       return;
     }
 
-    if (lastAppliedCameraTypeRef.current === activeCameraType) {
+    const publication = participant.getTrackPublication(Track.Source.Camera);
+    const publishedTrack = publication?.track;
+    if (publishedTrack instanceof LocalVideoTrack) {
+      onTrackReadyRef.current?.(publishedTrack.mediaStreamTrack as MediaStreamTrackLike);
       return;
+    }
+
+    onTrackReadyRef.current?.(null);
+  };
+
+  const attachModeration = (participant = localParticipant) => {
+    if (!participant) {
+      return;
+    }
+
+    const publication = participant.getTrackPublication(Track.Source.Camera);
+    const publishedTrack = publication?.track;
+    if (publishedTrack instanceof LocalVideoTrack) {
+      attachNativeModerationSampler(publishedTrack.mediaStreamTrack as MediaStreamTrackLike);
+      notifyTrackReady(participant);
+    }
+  };
+
+  useEffect(() => {
+    if (!localParticipant) {
+      return undefined;
+    }
+
+    if (lastAppliedCameraTypeRef.current === activeCameraType || switchingRef.current) {
+      return undefined;
+    }
+
+    if (lastAppliedCameraTypeRef.current === undefined) {
+      lastAppliedCameraTypeRef.current = activeCameraType;
+      const initialTimer = setTimeout(() => {
+        attachModeration(localParticipant);
+      }, 1500);
+      return () => clearTimeout(initialTimer);
     }
 
     let cancelled = false;
+    switchingRef.current = true;
+
     const applyCamera = async () => {
       try {
         await switchHostCamera(localParticipant, activeCameraType);
-        if (!cancelled) {
-          lastAppliedCameraTypeRef.current = activeCameraType;
-          setVideoRenderKey((prev) => prev + 1);
+        if (cancelled) {
+          return;
         }
+
+        lastAppliedCameraTypeRef.current = activeCameraType;
+        setVideoRenderKey((prev) => prev + 1);
+        setTimeout(() => {
+          if (!cancelled) {
+            attachModeration(localParticipant);
+          }
+        }, 400);
       } catch (error) {
         console.warn('Failed to switch host camera', error);
+        if (!cancelled) {
+          lastAppliedCameraTypeRef.current = undefined;
+        }
+      } finally {
+        switchingRef.current = false;
       }
     };
 
@@ -82,8 +148,21 @@ function HostCameraTrack({
 
     return () => {
       cancelled = true;
+      switchingRef.current = false;
     };
   }, [activeCameraType, localParticipant]);
+
+  useEffect(() => {
+    if (!localTrack || !isTrackReference(localTrack)) {
+      onTrackReadyRef.current?.(null);
+      return;
+    }
+
+    const publishedTrack = localTrack.publication?.track;
+    if (publishedTrack instanceof LocalVideoTrack) {
+      onTrackReadyRef.current?.(publishedTrack.mediaStreamTrack as MediaStreamTrackLike);
+    }
+  }, [localTrack]);
 
   return (
     <View style={styles.previewContainer}>
@@ -92,7 +171,7 @@ function HostCameraTrack({
           key={`${activeCameraType}-${videoRenderKey}`}
           trackRef={localTrack}
           style={StyleSheet.absoluteFillObject}
-          mirror={false}
+          mirror={activeCameraType === CameraType.Front}
           objectFit="cover"
         />
       ) : (
@@ -113,6 +192,7 @@ export const LiveKitHostVideo = ({
   onCameraTypeChange,
   showFlip = true,
   isMuted = false,
+  onLocalVideoTrackReady,
 }: Props) => {
   useEffect(() => {
     let active = true;
@@ -144,7 +224,10 @@ export const LiveKitHostVideo = ({
         video={{ facingMode: getLiveKitFacingMode(cameraType ?? CameraType.Front) }}
         options={{ adaptiveStream: { pixelDensity: 'screen' } }}
       >
-        <HostCameraTrack cameraType={cameraType} />
+        <HostCameraTrack
+          cameraType={cameraType}
+          onLocalVideoTrackReady={onLocalVideoTrackReady}
+        />
         <HostMicControl isMuted={isMuted} />
       </LiveKitRoom>
       {showFlip && onCameraTypeChange && (

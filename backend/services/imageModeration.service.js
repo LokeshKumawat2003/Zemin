@@ -10,19 +10,156 @@ const Creator = require('../models/Creator.model');
 const { getAuthModels } = require('../config/database');
 
 const scriptPath = path.join(__dirname, '..', 'moderation', 'nudenet_scan.py');
+const workerScriptPath = path.join(__dirname, '..', 'moderation', 'nudenet_worker.py');
 const defaultPython = process.platform === 'win32'
   ? path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Python', 'Python312', 'python.exe')
   : 'python3';
 
-const scanImage = (imagePath) => new Promise((resolve, reject) => {
+let moderationWorker = null;
+let workerReady = false;
+let workerBootPromise = null;
+let workerRequestId = 0;
+const workerPending = new Map();
+
+const resetModerationWorker = () => {
+  if (moderationWorker) {
+    moderationWorker.kill();
+  }
+  moderationWorker = null;
+  workerReady = false;
+  workerBootPromise = null;
+  workerPending.forEach(({ reject, timeout }) => {
+    clearTimeout(timeout);
+    reject(new Error('Moderation worker restarted'));
+  });
+  workerPending.clear();
+};
+
+const handleWorkerLine = (line) => {
+  const trimmed = line.trim();
+  if (!trimmed) return;
+
+  let payload;
+  try {
+    payload = JSON.parse(trimmed);
+  } catch (error) {
+    console.warn('[Moderation] Ignored worker output:', trimmed);
+    return;
+  }
+
+  if (payload.ready) {
+    workerReady = true;
+    return;
+  }
+
+  const pending = workerPending.get(payload.id);
+  if (!pending) return;
+
+  clearTimeout(pending.timeout);
+  workerPending.delete(payload.id);
+  if (payload.error) pending.reject(new Error(payload.error));
+  else pending.resolve(payload);
+};
+
+const ensureModerationWorker = () => {
+  if (workerReady && moderationWorker) {
+    return Promise.resolve();
+  }
+  if (workerBootPromise) return workerBootPromise;
+
+  workerBootPromise = new Promise((resolve, reject) => {
+    const python = process.env.NSFW_PYTHON || defaultPython;
+    moderationWorker = spawn(python, [workerScriptPath], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      windowsHide: true,
+      cwd: path.join(__dirname, '..', 'moderation'),
+    });
+
+    let stdoutBuffer = '';
+    let bootResolved = false;
+
+    const bootTimeout = setTimeout(() => {
+      resetModerationWorker();
+      reject(new Error('Moderation worker failed to start'));
+    }, Number(process.env.NSFW_WORKER_BOOT_TIMEOUT_MS || 45000));
+
+    const finishBoot = () => {
+      if (bootResolved) return;
+      bootResolved = true;
+      clearTimeout(bootTimeout);
+      resolve();
+    };
+
+    moderationWorker.stdout.on('data', (chunk) => {
+      stdoutBuffer += chunk.toString();
+      const lines = stdoutBuffer.split('\n');
+      stdoutBuffer = lines.pop() || '';
+      lines.forEach((line) => {
+        handleWorkerLine(line);
+        if (workerReady) finishBoot();
+      });
+    });
+
+    moderationWorker.stderr.on('data', (chunk) => {
+      const message = chunk.toString().trim();
+      if (message) console.warn('[Moderation worker]', message);
+    });
+
+    moderationWorker.once('error', (error) => {
+      clearTimeout(bootTimeout);
+      resetModerationWorker();
+      reject(error);
+    });
+
+    moderationWorker.once('close', () => {
+      resetModerationWorker();
+    });
+  }).catch((error) => {
+    workerBootPromise = null;
+    throw error;
+  });
+
+  return workerBootPromise;
+};
+
+const scanImageWithWorker = async (imagePath, mode = 'default') => {
+  await ensureModerationWorker();
+  const requestId = ++workerRequestId;
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      workerPending.delete(requestId);
+      reject(new Error('Moderation worker timed out'));
+    }, Number(process.env.NSFW_SCAN_TIMEOUT_MS || 15000));
+
+    workerPending.set(requestId, { resolve, reject, timeout });
+
+    try {
+      moderationWorker.stdin.write(`${JSON.stringify({ id: requestId, path: imagePath, mode })}\n`);
+    } catch (error) {
+      clearTimeout(timeout);
+      workerPending.delete(requestId);
+      resetModerationWorker();
+      reject(error);
+    }
+  });
+};
+
+const scanImageOnce = (imagePath, mode = 'default') => new Promise((resolve, reject) => {
   const python = process.env.NSFW_PYTHON || defaultPython;
-  const child = spawn(python, [scriptPath, imagePath], { windowsHide: true });
+  const child = spawn(python, [scriptPath, imagePath], {
+    windowsHide: true,
+    env: {
+      ...process.env,
+      NSFW_SCAN_MODE: mode,
+    },
+  });
   let stdout = '';
   let stderr = '';
 
   child.stdout.on('data', (chunk) => { stdout += chunk.toString(); });
   child.stderr.on('data', (chunk) => { stderr += chunk.toString(); });
-  const timeout = setTimeout(() => child.kill(), Number(process.env.NSFW_SCAN_TIMEOUT_MS || 30000));
+  const timeout = setTimeout(() => child.kill(), Number(process.env.NSFW_SCAN_TIMEOUT_MS || 15000));
 
   child.once('error', (error) => {
     clearTimeout(timeout);
@@ -41,13 +178,27 @@ const scanImage = (imagePath) => new Promise((resolve, reject) => {
   });
 });
 
-const enforceScan = async (imagePath, context) => {
+const scanImage = async (imagePath, mode = 'default') => {
+  if (process.env.NSFW_WORKER_ENABLED === 'false') {
+    return scanImageOnce(imagePath, mode);
+  }
+
+  try {
+    return await scanImageWithWorker(imagePath, mode);
+  } catch (error) {
+    console.warn('[Moderation] Worker scan failed, falling back to one-shot scanner:', error.message);
+    return scanImageOnce(imagePath, mode);
+  }
+};
+
+const enforceScan = async (imagePath, context, options = {}) => {
   if (process.env.NSFW_MODERATION_ENABLED === 'false') return { isNsfw: false, skipped: true };
   if (!imagePath || !fs.existsSync(imagePath)) {
     throw new AppError('MODERATION_UNAVAILABLE', 503, 'Image moderation input is unavailable');
   }
+  const mode = options.mode || (String(context).includes('live') ? 'live' : 'default');
   try {
-    return await scanImage(imagePath);
+    return await scanImage(imagePath, mode);
   } catch (error) {
     console.error(`[Moderation] ${context} scan failed:`, error.message);
     if (process.env.NSFW_MODERATION_FAIL_CLOSED !== 'false') {
@@ -125,7 +276,20 @@ const recordPostViolation = async (userId) => {
   throw new AppError(code, 403, message, { warningCount, maxWarnings: 2 });
 };
 
-const disablePublicStreaming = async (userId, reason) => {
+const notifyLiveModerationEnd = (roomId) => {
+  if (!roomId) return;
+  try {
+    const { getIO } = require('../sockets');
+    const io = getIO();
+    if (io) {
+      io.to(`live:${roomId}`).emit('live:ended', { roomId, reason: 'moderation' });
+    }
+  } catch (_) {
+    // Socket may be unavailable during tests
+  }
+};
+
+const disablePublicStreaming = async (userId, reason, roomId = null) => {
   const { User: AuthUser } = getAuthModels();
   const update = {
     streamingDisabled: true,
@@ -141,16 +305,22 @@ const disablePublicStreaming = async (userId, reason) => {
     ),
     Creator.findOneAndUpdate({ userId }, { isLive: false, currentLiveRoomId: null }),
   ]);
+  notifyLiveModerationEnd(roomId);
 };
 
-const enforcePublicImage = async (imagePath, userId, context) => {
-  const result = await enforceScan(imagePath, context);
+const enforcePublicImage = async (imagePath, userId, context, roomId = null) => {
+  const result = await enforceScan(imagePath, context, { mode: 'live' });
   if (!result.isNsfw) return result;
-  await disablePublicStreaming(userId, 'Nude or sexually explicit image detected in a public live room');
+  await disablePublicStreaming(
+    userId,
+    'Nude or sexually explicit image detected in a public live room',
+    roomId,
+  );
   throw new AppError(
     'PUBLIC_STREAMING_DISABLED',
     403,
     'Public streaming has been disabled because explicit content was detected',
+    { detections: result.detections?.length || 0 },
   );
 };
 
@@ -193,7 +363,17 @@ module.exports = {
   enforceScan,
   recordProfileViolation,
   recordPostViolation,
+  disablePublicStreaming,
   enforcePublicImage,
   enforcePublicPostImage,
   enforcePublicPostUrl,
+  warmupModerationWorker: async () => {
+    if (process.env.NSFW_MODERATION_ENABLED === 'false') return;
+    try {
+      await ensureModerationWorker();
+      console.log('[Moderation] NudeNet worker ready');
+    } catch (error) {
+      console.warn('[Moderation] NudeNet worker preload failed:', error.message);
+    }
+  },
 };

@@ -1,7 +1,30 @@
+const fs = require('fs');
+const os = require('os');
+const path = require('path');
+const multer = require('multer');
 const liveService = require('../services/live.service');
 const { getIO } = require('../sockets');
 const { success, paginated } = require('../utils/response.util');
 const { getPagination } = require('../utils/pagination.util');
+const AppError = require('../utils/AppError');
+
+const frameUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(os.tmpdir(), 'zemin-live-moderation');
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      cb(null, `${Date.now()}-${Math.round(Math.random() * 1e9)}.jpg`);
+    },
+  }),
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (/jpeg|jpg|png|webp/i.test(file.mimetype)) cb(null, true);
+    else cb(new AppError('VALIDATION_ERROR', 400, 'Image file required'));
+  },
+}).single('file');
 
 exports.create = async (req, res, next) => {
   try {
@@ -138,4 +161,25 @@ exports.vipRooms = async (req, res, next) => {
   } catch (err) {
     next(err);
   }
+};
+
+exports.moderateFrame = (req, res, next) => {
+  frameUpload(req, res, async (err) => {
+    if (err) return next(err);
+    if (!req.file) return next(new AppError('VALIDATION_ERROR', 400, 'Frame image required'));
+
+    try {
+      const data = await liveService.moderateLiveFrame(
+        req.user._id,
+        req.params.roomId,
+        req.file.path,
+      );
+      success(res, data, 'Frame scanned');
+    } catch (uploadErr) {
+      if (req.file?.path && fs.existsSync(req.file.path)) {
+        await fs.promises.unlink(req.file.path).catch(() => {});
+      }
+      next(uploadErr);
+    }
+  });
 };

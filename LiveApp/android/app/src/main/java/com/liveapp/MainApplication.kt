@@ -1,11 +1,15 @@
 package com.Zemin
 
 import android.app.Application
+import com.Zemin.moderation.LiveModerationPackage
+import com.Zemin.moderation.ModerationFrameProcessorFactory
+import com.Zemin.moderation.ModerationFrameStore
 import com.facebook.react.PackageList
 import com.facebook.react.ReactApplication
 import com.facebook.react.ReactHost
 import com.facebook.react.ReactNativeApplicationEntryPoint.loadReactNative
 import com.facebook.react.defaults.DefaultReactHost.getDefaultReactHost
+import com.oney.WebRTCModule.videoEffects.ProcessorProvider
 
 class MainApplication : Application(), ReactApplication {
 
@@ -14,14 +18,15 @@ class MainApplication : Application(), ReactApplication {
       context = applicationContext,
       packageList =
         PackageList(this).packages.apply {
-          // Packages that cannot be autolinked yet can be added manually here, for example:
-          // add(MyReactNativePackage())
+          add(LiveModerationPackage())
         },
     )
   }
 
   override fun onCreate() {
     super.onCreate()
+    ModerationFrameStore.init(this)
+    ProcessorProvider.addProcessor("zemin-moderation", ModerationFrameProcessorFactory())
     loadReactNative(this)
   }
 }

@@ -127,6 +127,10 @@ export const liveApi = {
   join: (roomId: string) => apiClient.post('/live/join', { roomId }),
   leave: (roomId: string) => apiClient.post('/live/leave', { roomId }),
   end: (roomId: string) => apiClient.post('/live/end', { roomId }),
+  moderateFrame: (roomId: string, formData: FormData) =>
+    apiClient.post(`/live/${roomId}/moderate-frame`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }),
 };
 
 export const chatApi = {

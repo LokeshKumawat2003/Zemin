@@ -6,8 +6,10 @@ import {
   Keyboard,
   Platform,
   useWindowDimensions,
+  View,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
+import type { CameraApi } from 'react-native-camera-kit';
 import { liveApi, userApi } from '../../api';
 import { getGiftEmoji } from '../../components/live/LiveGiftEffects';
 import { GiftEntryPicker } from '../../components/live/GiftEntryPicker';
@@ -15,6 +17,7 @@ import { GiftItem } from '../../components/live/LiveGiftEffects';
 import { useAppSelector } from '../../redux/hooks';
 import { LiveStackParamList } from '../../navigation/types';
 import { useLiveSocket, LiveGiftPayload } from '../../hooks/useSocket';
+import { useLiveModeration } from '../../hooks/useLiveModeration';
 import { socketManager } from '../../socket/socketClient';
 
 type Props = NativeStackScreenProps<LiveStackParamList, 'LiveHost'>;
@@ -58,7 +61,7 @@ const formatCount = (n: number) => {
 };
 
 export const useLiveHostScreen = ({ route, navigation }: Props) => {
-  const { roomId, title, webrtcToken, livekitUrl, livekitEnabled } = route.params;
+  const { roomId, title, webrtcToken, livekitUrl, livekitEnabled, roomType: initialRoomType = 'public' } = route.params;
   const { width, height } = useWindowDimensions();
   const isCompact = width < 380;
   const chatMaxHeight = Math.min(240, Math.max(180, height * 0.28));
@@ -66,6 +69,7 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
   const hostAvatarUri = currentUser?.avatar || undefined;
   const hostInitial = (currentUser?.displayName || currentUser?.username || 'U').charAt(0).toUpperCase();
 
+  const [roomType, setRoomType] = useState<'public' | 'vip'>(initialRoomType);
   const [viewers, setViewers] = useState(0);
   const [ending, setEnding] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -81,9 +85,23 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
   const [entryGift, setEntryGift] = useState<GiftItem | null>(null);
   const [convertingPrivate, setConvertingPrivate] = useState(false);
   const [showPrivatePicker, setShowPrivatePicker] = useState(false);
+  const [localVideoTrack, setLocalVideoTrack] = useState<{
+    id?: string;
+    _setVideoEffect?: (name: string) => void;
+  } | null>(null);
 
   const listRef = useRef<any>(null);
   const autoEndTriggeredRef = useRef(false);
+  const videoCaptureRef = useRef<View>(null);
+  const fallbackCameraRef = useRef<CameraApi>(null);
+  const moderationViolationRef = useRef(false);
+
+  const handleLocalVideoTrackReady = useCallback((track: {
+    id?: string;
+    _setVideoEffect?: (name: string) => void;
+  } | null) => {
+    setLocalVideoTrack(track);
+  }, []);
 
   const handleViewerCount = useCallback((count: number) => {
     setViewers(Math.max(0, count - 1));
@@ -136,6 +154,7 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
     setConvertingPrivate(true);
     try {
       await liveApi.convertToVip(roomId, entryGift.giftId);
+      setRoomType('vip');
       setShowPrivatePicker(false);
       Alert.alert('Private live enabled', `Viewers must send ${entryGift.name} to join from now on.`);
     } catch (e: any) {
@@ -216,6 +235,39 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
 
   useLiveSocket(roomId, onSocketEvent, handleViewerCount, onLiveGift);
 
+  const handleModerationViolation = useCallback(() => {
+    if (moderationViolationRef.current) return;
+    moderationViolationRef.current = true;
+    void endStream(true).finally(() => {
+      navigation.goBack();
+    });
+  }, [endStream, navigation]);
+
+  useLiveModeration({
+    enabled: roomType === 'public' && !ending,
+    roomId,
+    captureTargetRef: videoCaptureRef,
+    cameraRef: fallbackCameraRef,
+    videoTrack: localVideoTrack,
+    onViolation: handleModerationViolation,
+  });
+
+  useEffect(() => {
+    const cleanupPrivacy = socketManager.onLivePrivacyChanged((payload) => {
+      if (payload.roomId === roomId) {
+        setRoomType('vip');
+      }
+    });
+    const cleanupEnded = socketManager.onLiveEnded((payload) => {
+      if (payload.roomId !== roomId || payload.reason !== 'moderation') return;
+      handleModerationViolation();
+    });
+    return () => {
+      cleanupPrivacy?.();
+      cleanupEnded?.();
+    };
+  }, [handleModerationViolation, roomId]);
+
   useEffect(() => {
     const cleanup = socketManager.onLiveUserRemoved((payload) => {
       if (payload.roomId !== roomId) return;
@@ -282,9 +334,13 @@ export const useLiveHostScreen = ({ route, navigation }: Props) => {
   return {
     roomId,
     title,
+    roomType,
     webrtcToken,
     livekitUrl,
     livekitEnabled,
+    videoCaptureRef,
+    fallbackCameraRef,
+    handleLocalVideoTrackReady,
     isCompact,
     chatMaxHeight,
     currentUser,

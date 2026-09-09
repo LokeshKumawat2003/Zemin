@@ -36,6 +36,7 @@ export type LiveStackParamList = {
   LiveHost: {
     roomId: string;
     title: string;
+    roomType?: 'public' | 'vip';
     webrtcToken?: string;
     livekitUrl?: string;
     livekitRoom?: string;
