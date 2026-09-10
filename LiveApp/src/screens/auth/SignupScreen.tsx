@@ -19,7 +19,7 @@ import { colors, typography, spacing } from '../../theme';
 import { useAppDispatch } from '../../redux/hooks';
 import { registerUser } from '../../redux/slices/authSlice';
 import { AuthStackParamList } from '../../navigation/types';
-import { getAuthErrorMessage, validateSignupInput } from '../../utils/authErrors';
+import { getAuthFieldErrors, getAuthErrorMessage, SignupFieldErrors, validateSignupFields } from '../../utils/authErrors';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Signup'>;
 
@@ -31,6 +31,7 @@ export const SignupScreen = ({ navigation }: Props) => {
   const [avatarUri, setAvatarUri] = useState<string>();
   const [legalAccepted, setLegalAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<SignupFieldErrors>({});
 
   const chooseAvatar = async () => {
     const result = await launchImageLibrary({ mediaType: 'photo', selectionLimit: 1 });
@@ -39,20 +40,24 @@ export const SignupScreen = ({ navigation }: Props) => {
   };
 
   const onSignup = async () => {
-    if (!username || !email || !password || !avatarUri || !legalAccepted) {
-      Alert.alert('Error', 'Please fill in all fields');
-      return;
-    }
-    const validationError = validateSignupInput(username, email, password);
-    if (validationError) {
-      Alert.alert('Invalid Input', validationError);
+    const normalizedUsername = username.trim();
+    const normalizedEmail = email.trim();
+    const validationErrors = validateSignupFields(
+      normalizedUsername,
+      normalizedEmail,
+      password,
+      avatarUri,
+      legalAccepted,
+    );
+    setFieldErrors(validationErrors);
+    if (Object.keys(validationErrors).length) {
       return;
     }
     setLoading(true);
     try {
       const result = await dispatch(registerUser({
-        username,
-        email,
+        username: normalizedUsername,
+        email: normalizedEmail,
         password,
         termsAccepted: true,
         privacyPolicyAccepted: true,
@@ -63,7 +68,12 @@ export const SignupScreen = ({ navigation }: Props) => {
         avatarUri,
       });
     } catch (e: unknown) {
-      Alert.alert('Signup Failed', getAuthErrorMessage(e, 'Registration failed'));
+      const serverFieldErrors = getAuthFieldErrors(e);
+      if (Object.keys(serverFieldErrors).length) {
+        setFieldErrors(serverFieldErrors);
+      } else {
+        Alert.alert('Signup Failed', getAuthErrorMessage(e, 'Registration failed'));
+      }
     } finally {
       setLoading(false);
     }
@@ -77,13 +87,34 @@ export const SignupScreen = ({ navigation }: Props) => {
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Create Account</Text>
         <TouchableOpacity style={styles.avatarPicker} onPress={chooseAvatar} activeOpacity={0.8}>
-          {avatarUri ? <Image source={{ uri: avatarUri }} style={styles.avatar} /> : <Text style={styles.avatarText}>Add photo</Text>}
+          {avatarUri ? <Image source={{ uri: avatarUri }} style={styles.avatar} /> : <Text style={styles.avatarText}>Add photo (optional)</Text>}
         </TouchableOpacity>
-        <Input label="Username" value={username} onChangeText={setUsername} autoCapitalize="none" />
-        <Input label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" />
-        <Input label="Password" value={password} onChangeText={setPassword} secureTextEntry />
+        <Input
+          label="Username"
+          value={username}
+          onChangeText={value => { setUsername(value); setFieldErrors(errors => ({ ...errors, username: undefined })); }}
+          autoCapitalize="none"
+          autoCorrect={false}
+          error={fieldErrors.username}
+        />
+        <Input
+          label="Email"
+          value={email}
+          onChangeText={value => { setEmail(value); setFieldErrors(errors => ({ ...errors, email: undefined })); }}
+          keyboardType="email-address"
+          autoCapitalize="none"
+          autoCorrect={false}
+          error={fieldErrors.email}
+        />
+        <Input
+          label="Password"
+          value={password}
+          onChangeText={value => { setPassword(value); setFieldErrors(errors => ({ ...errors, password: undefined })); }}
+          secureTextEntry
+          error={fieldErrors.password}
+        />
         <Text style={styles.hint}>
-          At least 8 characters with uppercase, lowercase, and a number
+          Password requirements: 8+ characters, 1 uppercase, 1 lowercase, and 1 number
         </Text>
         <Pressable
           style={styles.legalRow}
@@ -104,6 +135,7 @@ export const SignupScreen = ({ navigation }: Props) => {
             </Text>.
           </Text>
         </Pressable>
+        {fieldErrors.legal ? <Text style={styles.formError}>{fieldErrors.legal}</Text> : null}
         <Button title="Sign Up" onPress={onSignup} loading={loading} />
         <Button title="Back to Login" variant="ghost" onPress={() => navigation.goBack()} />
       </ScrollView>
@@ -120,6 +152,7 @@ const styles = StyleSheet.create({
     color: colors.textDisabled,
     marginBottom: spacing.md,
   },
+  formError: { ...typography.caption, color: colors.error, marginBottom: spacing.md },
   avatarPicker: { alignSelf: 'center', width: 104, height: 104, borderRadius: 52, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center', marginBottom: spacing.lg, overflow: 'hidden' },
   avatar: { width: '100%', height: '100%' },
   avatarText: { ...typography.caption, color: colors.primary },

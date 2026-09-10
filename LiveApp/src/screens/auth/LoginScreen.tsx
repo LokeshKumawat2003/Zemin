@@ -6,7 +6,6 @@ import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
-  Alert,
   TouchableOpacity,
 } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
@@ -16,7 +15,7 @@ import { colors, typography } from '../../theme';
 import { useAppDispatch, useAppSelector } from '../../redux/hooks';
 import { loginUser, clearError } from '../../redux/slices/authSlice';
 import { AuthStackParamList } from '../../navigation/types';
-import { getAuthErrorMessage } from '../../utils/authErrors';
+import { getAuthErrorMessage, getAuthFieldErrors } from '../../utils/authErrors';
 import { useResponsive } from '../../hooks/useResponsive';
 
 type Props = NativeStackScreenProps<AuthStackParamList, 'Login'>;
@@ -28,6 +27,8 @@ export const LoginScreen = ({ navigation }: Props) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ identifier?: string; password?: string }>({});
+  const [formError, setFormError] = useState('');
 
   const styles = useMemo(
     () =>
@@ -76,16 +77,29 @@ export const LoginScreen = ({ navigation }: Props) => {
   );
 
   const onLogin = async () => {
-    if (!identifier || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+    const normalizedIdentifier = identifier.trim();
+    const nextErrors: typeof fieldErrors = {};
+    if (!normalizedIdentifier) nextErrors.identifier = 'Email or username is required';
+    if (!password) nextErrors.password = 'Password is required';
+    setFieldErrors(nextErrors);
+    if (Object.keys(nextErrors).length) {
       return;
     }
     setLoading(true);
     dispatch(clearError());
     try {
-      await dispatch(loginUser({ identifier, password })).unwrap();
+      await dispatch(loginUser({ identifier: normalizedIdentifier, password })).unwrap();
     } catch (e: unknown) {
-      Alert.alert('Login Failed', getAuthErrorMessage(e, 'Invalid credentials'));
+      const serverErrors = getAuthFieldErrors(e);
+      const nextServerErrors: typeof fieldErrors = {
+        identifier: serverErrors.email || serverErrors.username,
+        password: serverErrors.password,
+      };
+      if (Object.values(nextServerErrors).some(Boolean)) {
+        setFieldErrors(nextServerErrors);
+      } else {
+        setFormError(getAuthErrorMessage(e, 'Invalid credentials'));
+      }
     } finally {
       setLoading(false);
     }
@@ -103,16 +117,19 @@ export const LoginScreen = ({ navigation }: Props) => {
         <Input
           label="Email or Username"
           value={identifier}
-          onChangeText={setIdentifier}
+          onChangeText={value => { setIdentifier(value); setFieldErrors(errors => ({ ...errors, identifier: undefined })); }}
           autoCapitalize="none"
+          autoCorrect={false}
           placeholder="you@email.com"
+          error={fieldErrors.identifier}
         />
         <Input
           label="Password"
           value={password}
-          onChangeText={setPassword}
+          onChangeText={value => { setPassword(value); setFieldErrors(errors => ({ ...errors, password: undefined })); }}
           secureTextEntry
           placeholder="••••••••"
+          error={fieldErrors.password}
         />
 
         <Button title="Login" onPress={onLogin} loading={loading} style={styles.button} />
@@ -122,6 +139,7 @@ export const LoginScreen = ({ navigation }: Props) => {
         </TouchableOpacity>
 
         <Text style={styles.hint}>Demo: demofan / DemoPass123</Text>
+        {formError ? <Text style={styles.formError}>{formError}</Text> : null}
 
         <Button
           title="Create Account"
