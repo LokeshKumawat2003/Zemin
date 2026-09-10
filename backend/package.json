@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
+    "install:moderation": "python -m pip install -r moderation/requirements.txt",
     "seed": "node scripts/seed.js",
     "seed:reports": "node scripts/seedDemoReports.js",
     "seed:payments": "node scripts/seedDemoPayments.js",

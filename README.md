@@ -34,6 +34,21 @@ npm run dev
 API: `http://localhost:3000`  
 Health: `http://localhost:3000/health`
 
+### Image moderation
+
+The backend's NudeNet scanner is a Python dependency. Install it from the backend directory before starting the API locally:
+
+```bash
+cd backend
+npm run install:moderation
+```
+
+For a Render Node service whose root directory is `backend`, use this build command so the worker dependency is installed during deployment:
+
+```bash
+npm install && npm run install:moderation
+```
+
 ### Demo Accounts (after seed)
 
 | Role | Username | Password |
