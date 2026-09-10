@@ -43,7 +43,7 @@ cd backend
 npm run install:moderation
 ```
 
-For a Render Node service whose root directory is `backend`, use this build command so the worker dependency is installed during deployment:
+For a Render Node service whose root directory is `backend`, use this build command so the worker dependency is installed during deployment. The repository also includes a `render.yaml` Blueprint with this configuration:
 
 ```bash
 npm install && npm run install:moderation

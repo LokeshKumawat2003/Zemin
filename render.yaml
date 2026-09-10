@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: zemin-backend
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && python3 -m pip install -r moderation/requirements.txt
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NSFW_PYTHON
+        value: python3
